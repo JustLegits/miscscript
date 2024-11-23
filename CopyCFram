@@ -1,0 +1,1 @@
+setclipboard('CFrame.new(Vector3.new(' .. tostring(math.floor(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position.x)) .. ',' .. tostring(math.floor(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position.y)) .. ',' .. tostring(math.floor(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position.z)) .. '))')
