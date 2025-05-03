@@ -1,11 +1,21 @@
-local path = "/sdcard/roblox_status/status.txt"
 local HttpService = game:GetService("HttpService")
-local function updateStatus()
-    local now = os.time()
-    writefile(path, tostring(now))
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local filePath = "status.txt"
+local player = Players.LocalPlayer
+
+local function writeStatus()
+    local time = os.time()
+    if isfile(filePath) then
+        delfile(filePath)
+    end
+    writefile(filePath, tostring(time))
 end
 
+writeStatus()
+
 while true do
-    updateStatus()
-    wait(300)  -- 5 phút
+    task.wait(60) -- chờ 60 giây
+    writeStatus()
 end
