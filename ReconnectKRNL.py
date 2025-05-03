@@ -1,90 +1,84 @@
 import os
+import json
 import time
 
+# Chỉ đọc status.txt ở đây
 STATUS_FILE = "/data/data/com.roblox.client/files/krnl/workspace/status.txt"
-CONFIG_FILE = "/data/data/com.roblox.client/files/krnl/workspace/config.txt"
+
+# Lưu config ở nơi Termux có quyền
+CONFIG_PATH = "/data/data/com.termux/files/home/reconnect_config.txt"
+
+DEFAULT_CONFIG = {
+    "place_id": "",
+    "vip_server_link": "",
+    "check_interval": 300  # giây
+}
 
 def load_config():
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            lines = f.readlines()
-        config = {}
-        for line in lines:
-            if "=" in line:
-                k, v = line.strip().split("=", 1)
-                config[k] = v
-        return config
-    else:
-        return {}
+    if not os.path.exists(CONFIG_PATH):
+        save_config(DEFAULT_CONFIG)
+        return DEFAULT_CONFIG
+    with open(CONFIG_PATH, "r") as f:
+        return json.load(f)
 
 def save_config(config):
-    with open(CONFIG_FILE, "w") as f:
-        for k, v in config.items():
-            f.write(f"{k}={v}\n")
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(config, f)
 
 def kill_roblox():
-    os.system("su -c 'pkill -f com.roblox.client'")
+    os.system("su -c 'pkill -f \"com.roblox.client\"'")
     print("✅ Đã tắt Roblox")
 
-def rejoin_game(place_id, vip_server=""):
-    time.sleep(2)
-    url = f"roblox://placeId={place_id}"
-    if vip_server:
-        url += f"&linkCode={vip_server}"
-    os.system(f'am start -a android.intent.action.VIEW -d "{url}"')
-    print(f"✅ Đã rejoin game: {url}")
+def rejoin_game(place_id):
+    os.system(f'am start -a android.intent.action.VIEW -d "roblox://placeId={place_id}"')
+    print(f"✅ Đã mở lại Roblox (PlaceID: {place_id})")
 
-def check_status():
-    if not os.path.exists(STATUS_FILE):
-        print("⚠️ Không tìm thấy file status.txt")
-        return False
+def should_rejoin(last_ts, current_ts, threshold=120):
+    return (current_ts - last_ts) > threshold
 
+def read_status_timestamp():
     try:
         with open(STATUS_FILE, "r") as f:
-            timestamp = int(f.read().strip())
-
-        now = int(time.time())
-        delta = now - timestamp
-
-        print(f"[ℹ️] Đã đọc timestamp: {timestamp}, hiện tại: {now}, lệch {delta} giây")
-        return delta > 120
-
-    except Exception as e:
-        print(f"[Lỗi] Khi đọc file: {e}")
-        return False
+            return int(f.read().strip())
+    except:
+        return 0
 
 def config_menu():
     config = load_config()
-    print("===== Cài đặt =====")
-    config["placeId"] = input(f"Nhập Place ID [{config.get('placeId', '')}]: ") or config.get("placeId", "")
-    config["svv"] = input(f"Nhập VIP Server linkCode (nếu có) [{config.get('svv', '')}]: ") or config.get("svv", "")
+    print("\n=== Chỉnh cấu hình ===")
+    config["place_id"] = input(f"PlaceID [{config['place_id']}]: ") or config["place_id"]
+    config["vip_server_link"] = input(f"VIP Server Link (nếu có) [{config['vip_server_link']}]: ") or config["vip_server_link"]
+    try:
+        interval = int(input(f"Thời gian kiểm tra (giây) [{config['check_interval']}]: ") or config["check_interval"])
+        config["check_interval"] = interval
+    except:
+        pass
     save_config(config)
-    print("✅ Đã lưu cấu hình.")
+    print("Đã lưu cấu hình.")
 
-def main():
+def main_loop():
     config = load_config()
-    if not config.get("placeId"):
-        config_menu()
-        config = load_config()
-
+    print("Đang chạy tự động kiểm tra...")
     while True:
-        if check_status():
-            print("[⚠️] Trạng thái offline! Rejoining...")
+        last = read_status_timestamp()
+        now = int(time.time())
+        if should_rejoin(last, now):
+            print("[!] Mất kết nối - rejoin...")
             kill_roblox()
-            rejoin_game(config["placeId"], config.get("svv", ""))
+            time.sleep(3)
+            rejoin_game(config["place_id"])
         else:
-            print("✅ Trạng thái ổn định.")
-        time.sleep(300)
+            print("[+] Online bình thường.")
+        time.sleep(config["check_interval"])
 
 if __name__ == "__main__":
-    print("=== Roblox Reconnect Script ===")
-    print("1. Bắt đầu chạy")
-    print("2. Cấu hình")
-    print("0. Thoát")
-    choice = input("Chọn: ")
+    print("1. Cấu hình")
+    print("2. Chạy")
+    try:
+        choice = input("Chọn: ").strip()
+    except:
+        choice = "2"
     if choice == "1":
-        main()
-    elif choice == "2":
         config_menu()
     else:
-        print("Thoát.")
+        main_loop()
