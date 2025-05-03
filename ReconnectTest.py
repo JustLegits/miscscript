@@ -1,41 +1,62 @@
 import os
 import time
+import json
+import subprocess
+from datetime import datetime
 
-STATUS_FILE = "/sdcard/roblox_status/status.txt"
-REJOIN_DELAY = 300  # 5 phút
-TIME_THRESHOLD = 120  # 2 phút
-ROBLOX_LINK = "roblox://placeId=YOUR_PLACE_ID"  # <-- Thay bằng của bạn
+STATUS_FILE = "/data/data/com.roblox.client/files/krnl/workspace/status.txt"
+CHECK_INTERVAL = 300  # 5 phút
+MAX_TIME_DIFF = 120   # 2 phút (tính bằng giây)
+ROBLOX_LINK = "roblox://placeId=72829404259339"
 
-def kill_roblox():
-    os.system("su -c 'pkill -f \"com.roblox.client\"'")
-    print("✅ Đã kill Roblox.")
-
-def rejoin_game():
-    os.system(f'am start -a android.intent.action.VIEW -d "{ROBLOX_LINK}"')
-    print(f"✅ Đã rejoin vào {ROBLOX_LINK}")
-
-def read_timestamp():
+def read_status():
     try:
         with open(STATUS_FILE, "r") as f:
-            return int(f.read().strip())
+            data = json.load(f)
+            return data.get("time")
     except Exception as e:
-        print(f"[!] Lỗi khi đọc file: {e}")
-        return 0
+        print(f"[Lỗi] Không đọc được status.txt: {e}")
+        return None
 
-while True:
-    now = int(time.time())
-    last = read_timestamp()
+def kill_roblox():
+    try:
+        subprocess.run(["su", "-c", "pkill -f com.roblox.client"])
+        print("✅ Đã tắt Roblox")
+    except Exception as e:
+        print(f"[Lỗi] Không thể kill Roblox: {e}")
 
-    diff = now - last
-    print(f"[⏱️] Time diff: {diff} giây")
+def rejoin_game():
+    try:
+        os.system(f'am start -a android.intent.action.VIEW -d "{ROBLOX_LINK}"')
+        print("✅ Đã gửi intent mở Roblox")
+    except Exception as e:
+        print(f"[Lỗi] Không thể rejoin: {e}")
 
-    if diff > TIME_THRESHOLD:
-        print("[⚠️] Phát hiện offline! Rejoining...")
-        kill_roblox()
-        time.sleep(2)
-        rejoin_game()
-        time.sleep(REJOIN_DELAY)  # chờ 5p trước lần check tiếp theo
+def check_status():
+    unix_time = read_status()
+    if not unix_time:
+        print("[⚠️] Không có dữ liệu, sẽ thử rejoin")
+        return True
+
+    current_time = int(time.time())
+    diff = current_time - int(unix_time)
+
+    print(f"[i] Time hiện tại: {current_time}, time file: {unix_time}, lệch: {diff}s")
+
+    if diff > MAX_TIME_DIFF:
+        print("[⚠️] Trạng thái quá cũ, đang thực hiện rejoin...")
+        return True
     else:
-        print("✅ Online. Không cần rejoin.")
+        print("✅ Trạng thái bình thường.")
+        return False
 
-    time.sleep(60)
+def main():
+    while True:
+        if check_status():
+            kill_roblox()
+            time.sleep(3)
+            rejoin_game()
+        time.sleep(CHECK_INTERVAL)
+
+if __name__ == "__main__":
+    main()
