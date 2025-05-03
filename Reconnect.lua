@@ -1,21 +1,33 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 
-local function writeStatus()
+local player = Players.LocalPlayer
+local statusFile = "/sdcard/roblox_status/status.txt"
+
+-- Hàm ghi thời gian hiện tại vào file
+local function updateStatusFile()
+    local timestamp = os.time()
+    local data = {
+        username = player.Name,
+        time = timestamp
+    }
+
+    local encoded = HttpService:JSONEncode(data)
+
+    -- Ghi file
     local success, err = pcall(function()
-        local timestamp = os.time()
-        writefile("/sdcard/roblox_status/status.txt", tostring(timestamp))
+        writefile(statusFile, encoded)
     end)
-    if not success then
-        warn("Ghi file lỗi: " .. tostring(err))
+
+    if success then
+        warn("[✔] Đã ghi trạng thái:", encoded)
+    else
+        warn("[✘] Ghi file lỗi:", err)
     end
 end
 
-writeStatus()
-
 -- Ghi mỗi 60 giây
 while true do
-    wait(60)
-    writeStatus()
+    updateStatusFile()
+    task.wait(60)
 end
