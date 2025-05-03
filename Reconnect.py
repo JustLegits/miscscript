@@ -1,66 +1,93 @@
 import os
 import time
-from pathlib import Path
+import json
+from datetime import datetime
 
-# ======== CẤU HÌNH ========
-CONFIG_FILE = "/sdcard/roblox_status/config.txt"
 STATUS_FILE = "/sdcard/roblox_status/status.txt"
-CHECK_INTERVAL = 300  # 5 phút
-MAX_OFFLINE_GAP = 120  # 2 phút
+CONFIG_PATH = "/sdcard/roblox_status/config.json"
+TIME_THRESHOLD_SECONDS = 120  # Nếu lệch hơn 2 phút thì rejoin
 
-def setup():
-    if not os.path.exists("/sdcard/roblox_status"):
-        os.makedirs("/sdcard/roblox_status", exist_ok=True)
+def ensure_dir():
+    os.makedirs("/sdcard/roblox_status", exist_ok=True)
 
-    if not os.path.exists(CONFIG_FILE):
-        print("[!] Chưa có cấu hình, tiến hành nhập mới.")
-        place_id = input("Nhập Place ID: ").strip()
-        vip_server = input("Nhập VIP server (bỏ trống nếu không có): ").strip()
-        with open(CONFIG_FILE, "w") as f:
-            f.write(place_id + "\n" + vip_server)
-    else:
-        with open(CONFIG_FILE, "r") as f:
-            lines = f.readlines()
-        place_id = lines[0].strip()
-        vip_server = lines[1].strip() if len(lines) > 1 else ""
+def save_config(data):
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(data, f)
 
-    return place_id, vip_server
+def load_config():
+    with open(CONFIG_PATH, "r") as f:
+        return json.load(f)
 
-def read_status_time():
+def setup_config():
+    print("⚙️ Cấu hình lần đầu:")
+    place_id = input("Nhập Place ID Roblox: ").strip()
+    delay = int(input("Delay kiểm tra (giây, ví dụ 300): ").strip())
+    config = {
+        "place_id": place_id,
+        "delay": delay
+    }
+    save_config(config)
+    print("✅ Đã lưu cấu hình.")
+    return config
+
+def kill_roblox():
+    os.system("su -c 'pkill -f com.roblox.client'")
+    print("✅ Đã kill Roblox")
+
+def rejoin_game(place_id):
+    print("[!] Bắt đầu rejoin...")
+    os.system(f'am start -a android.intent.action.VIEW -d "roblox://placeId={place_id}"')
+    print(f"✅ Đã rejoin game với Place ID: {place_id}")
+
+def read_timestamp():
     try:
         with open(STATUS_FILE, "r") as f:
-            timestamp = int(f.read().strip())
-        return timestamp
+            timestamp_str = f.read().strip()
+            if not timestamp_str.isdigit():
+                raise ValueError("Nội dung không phải timestamp số")
+            return int(timestamp_str)
     except Exception as e:
-        print(f"[!] Lỗi khi đọc file trạng thái: {e}")
-        return 0
+        print(f"[Lỗi] Khi đọc file: {e}")
+        return None
 
-def rejoin(place_id, vip_server):
-    print("[!] Bắt đầu rejoin...")
-    os.system("pkill -f com.roblox.client")
-    time.sleep(2)
-    os.system("monkey -p com.roblox.client -c android.intent.category.LAUNCHER 1")
-    time.sleep(2)
+def check_and_rejoin_if_needed(config):
+    timestamp = read_timestamp()
+    if timestamp is None:
+        print("⚠️ Không thể đọc thời gian từ file.")
+        return
 
-    if vip_server:
-        join_link = f"roblox://placeID={place_id}&linkCode={vip_server}"
+    now = int(time.time())
+    diff = now - timestamp
+    if diff > TIME_THRESHOLD_SECONDS:
+        print(f"[⚠️] Không thấy trạng thái online trong {diff} giây -> Rejoin")
+        kill_roblox()
+        time.sleep(2)
+        rejoin_game(config["place_id"])
     else:
-        join_link = f"roblox://placeID={place_id}"
+        print(f"✅ Online ({diff}s trước)")
 
-    os.system(f"am start -a android.intent.action.VIEW -d \"{join_link}\"")
+def menu():
+    ensure_dir()
+    config = None
+    if os.path.exists(CONFIG_PATH):
+        config = load_config()
+    else:
+        config = setup_config()
 
-def main():
-    place_id, vip_server = setup()
-    print(f"[✔] Đã cấu hình. Bắt đầu theo dõi file trạng thái mỗi {CHECK_INTERVAL // 60} phút...\n")
-
+    print("\n▶️ Bắt đầu kiểm tra trạng thái mỗi", config["delay"], "giây...\n")
     while True:
-        last_online = read_status_time()
-        now = int(time.time())
-        if now - last_online > MAX_OFFLINE_GAP:
-            rejoin(place_id, vip_server)
-        else:
-            print("[✓] Vẫn đang online.")
-        time.sleep(CHECK_INTERVAL)
+        check_and_rejoin_if_needed(config)
+        time.sleep(config["delay"])
 
 if __name__ == "__main__":
-    main()
+    print("===== ROBLOX AUTO REJOIN (LOCAL FILE MODE) =====")
+    print("1. Chạy script")
+    print("2. Reset cấu hình")
+    choice = input("Chọn (1/2): ").strip()
+    if choice == "2":
+        if os.path.exists(CONFIG_PATH):
+            os.remove(CONFIG_PATH)
+            print("✅ Đã reset cấu hình.")
+        else:
+            print("⚠️ Chưa có cấu hình để reset.")
+    menu()
