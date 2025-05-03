@@ -1,104 +1,80 @@
 import os
-import time
 import json
-from datetime import datetime
+import time
 
-CONFIG_PATH = "/data/data/com.termux/files/home/.roblox_config.json"
-STATUS_FILE_PATH = "/sdcard/roblox_status/status.txt"
+CONFIG_PATH = "/sdcard/roblox_status/config.json"
+STATUS_PATH = "/sdcard/roblox_status/status.txt"
 
-def save_config(place_id, vip_server):
-    config = {
-        "place_id": place_id,
-        "vip_server": vip_server
-    }
+def load_config():
+    if not os.path.exists(CONFIG_PATH):
+        return None
+    with open(CONFIG_PATH, "r") as f:
+        return json.load(f)
+
+def save_config(config):
     with open(CONFIG_PATH, "w") as f:
         json.dump(config, f)
 
-def load_config():
-    if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, "r") as f:
-            return json.load(f)
-    return None
+def setup_config():
+    os.makedirs("/sdcard/roblox_status", exist_ok=True)
+    print("[*] Cấu hình ban đầu")
+    place_id = input("Nhập Place ID: ").strip()
+    vip_server = input("Nhập VIP Server Link (nếu có, Enter nếu không): ").strip()
+    delay = int(input("Nhập thời gian kiểm tra (phút): ").strip())
+    config = {
+        "place_id": place_id,
+        "vip_server": vip_server,
+        "delay": delay
+    }
+    save_config(config)
+    return config
 
 def reset_config():
     if os.path.exists(CONFIG_PATH):
         os.remove(CONFIG_PATH)
-        print("[*] Đã reset cấu hình.")
+    return setup_config()
 
-def ensure_status_file():
-    os.makedirs(os.path.dirname(STATUS_FILE_PATH), exist_ok=True)
-    if not os.path.exists(STATUS_FILE_PATH):
-        with open(STATUS_FILE_PATH, "w") as f:
-            f.write(str(time.time()))
+def show_menu():
+    if not os.path.exists(CONFIG_PATH):
+        return setup_config()
 
-def get_last_timestamp():
+    while True:
+        print("\n--- Menu ---")
+        print("1. Tiếp tục với cấu hình hiện tại")
+        print("2. Reset cấu hình")
+        print("3. Thoát")
+        choice = input("Chọn: ").strip()
+        if choice == "1":
+            return load_config()
+        elif choice == "2":
+            return reset_config()
+        elif choice == "3":
+            exit()
+        else:
+            print("Lựa chọn không hợp lệ.")
+
+def read_status_time():
     try:
-        with open(STATUS_FILE_PATH, "r") as f:
-            content = f.read().strip()
-            return datetime.fromtimestamp(float(content))
+        with open(STATUS_PATH, "r") as f:
+            return int(f.read().strip())
     except Exception as e:
         print(f"[!] Lỗi khi đọc file: {e}")
         return None
 
-def run_menu():
-    print("===== CẤU HÌNH ROBLOX =====")
-    print("1. Nhập Place ID và VIP Server")
-    print("2. Reset cấu hình")
-    print("3. Tiếp tục")
-    choice = input("Chọn: ").strip()
-
-    if choice == "1":
-        place_id = input("Nhập Place ID: ").strip()
-        vip_server = input("Nhập VIP Server ID (nếu có, enter nếu không): ").strip()
-        save_config(place_id, vip_server)
-        print("[*] Đã lưu cấu hình.")
-    elif choice == "2":
-        reset_config()
-    elif choice == "3":
-        pass
-    else:
-        print("[!] Lựa chọn không hợp lệ.")
-
-def rejoin_game(place_id, vip_server):
+def launch_roblox(place_id):
     print("[!] Bắt đầu rejoin...")
-    try:
-        os.system("pkill -f com.roblox.client")
-        time.sleep(1)
-        if vip_server:
-            os.system(f"monkey -p com.roblox.client -c android.intent.category.LAUNCHER 1")
-        else:
-            os.system(f"monkey -p com.roblox.client -c android.intent.category.LAUNCHER 1")
-    except Exception as e:
-        print(f"[!] Lỗi khi khởi chạy Roblox: {e}")
+    os.system("pkill -f com.roblox.client")
+    os.system(f"am start -n com.roblox.client/com.roblox.client.ActivityNativeMain -d 'roblox://placeID={place_id}'")
 
 def main():
-    run_menu()
-    ensure_status_file()
-    config = load_config()
-    if not config:
-        print("[!] Chưa có cấu hình. Vui lòng chạy lại script.")
-        return
-
-    place_id = config["place_id"]
-    vip_server = config["vip_server"]
-
-    print("[*] Bắt đầu theo dõi trạng thái Roblox mỗi 5 phút...")
-
+    config = show_menu()
+    print("[*] Bắt đầu theo dõi...")
     while True:
-        last_time = get_last_timestamp()
-        if last_time:
-            now = datetime.now()
-            diff = (now - last_time).total_seconds()
-
-            if diff > 120:
-                print(f"[!] Không thấy tín hiệu online trong {int(diff)} giây.")
-                rejoin_game(place_id, vip_server)
-            else:
-                print(f"[OK] Roblox vẫn online. (cách {int(diff)} giây)")
-        else:
-            print("[!] Không đọc được thời gian. Bỏ qua vòng này.")
-
-        time.sleep(300)  # 5 phút
+        now = int(time.time())
+        last_online = read_status_time()
+        if last_online is None or now - last_online > 120:
+            launch_roblox(config.get("place_id"))
+        time.sleep(config.get("delay", 5) * 60)
 
 if __name__ == "__main__":
     main()
