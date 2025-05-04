@@ -1,9 +1,9 @@
-# FOR DELTA
 import time
 import os
 import subprocess
 import json
 import sys
+import urllib.parse  # Để xử lý URL
 
 # Định nghĩa tên file trạng thái và đường dẫn
 status_file_name = "status.txt"
@@ -34,26 +34,63 @@ def get_status_time():
         print(f"[PYTHON] Lỗi khi đọc file trạng thái: {e}")
         return None
 
-def rejoin_roblox():
-    """Khởi động lại ứng dụng Roblox."""
+def force_stop_roblox():
+    """Buộc dừng ứng dụng Roblox."""
+    print("[PYTHON] Buộc dừng Roblox...")
+    try:
+        result = subprocess.run(
+            ["am", "force-stop", package_name],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        print(f"[PYTHON] Lệnh am force-stop trả về:\n{result.stdout}")
+        if result.stderr:
+            print(f"[PYTHON] Lỗi từ lệnh am force-stop:\n{e.stderr}")
+    except subprocess.CalledProcessError as e:
+        print(f"[PYTHON] Lỗi khi chạy lệnh am force-stop: {e}")
+        print(f"[PYTHON] Lệnh am force-stop trả về (lỗi):\n{e.stderr}")
+
+def rejoin_roblox(place_id, vip_link):
+    """Khởi động lại ứng dụng Roblox và cố gắng join lại bằng deep linking."""
     print("[PYTHON] Tiến hành Rejoin Roblox...")
     try:
-        # Sử dụng subprocess.run để chạy lệnh am
-        result = subprocess.run(
+        force_stop_roblox()
+        time.sleep(5)
+
+        # Xây dựng URL deep linking
+        rejoin_url = ""
+        if vip_link:
+            rejoin_url = vip_link
+        elif place_id:
+            rejoin_url = f"roblox://placeid={place_id}"
+
+        if rejoin_url:
+            # Sử dụng lệnh am start -d để mở URL
+            am_command = ["am", "start", "-a", "android.intent.action.VIEW", "-d", rejoin_url]
+            result = subprocess.run(
+                am_command,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            print(f"[PYTHON] Lệnh am start -d trả về:\n{result.stdout}")
+            if result.stderr:
+                print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{e.stderr}")
+        else:
+             result = subprocess.run(
             ["am", "start", "-n", f"{package_name}/{activity_name}"],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
-        print(f"[PYTHON] Lệnh am trả về:\n{result.stdout}")
-        if result.stderr:
-            print(f"[PYTHON] Lỗi từ lệnh am:\n{result.stderr}")
 
     except subprocess.CalledProcessError as e:
-        print(f"[PYTHON] Lỗi khi chạy lệnh am: {e}")
-        print(f"[PYTHON] Lệnh am trả về (lỗi):\n{e.stderr}")
-
+        print(f"[PYTHON] Lỗi khi chạy lệnh am start: {e}")
+        print(f"[PYTHON] Lệnh am start trả về (lỗi):\n{e.stderr}")
 def load_config():
     """Tải cấu hình từ file config.json. Trả về một dictionary."""
     try:
@@ -104,7 +141,7 @@ def main():
     global running
     running = False
     config = load_config()
-    config_set = bool(config and config.get("place_id") and config.get("vip_link")) # Kiểm tra xem config đã được thiết lập chưa
+    config_set = bool(config and config.get("place_id") and config.get("vip_link"))
 
     if not config_set:
         print("[PYTHON] Chào mừng bạn mới! Vui lòng thiết lập cấu hình.")
@@ -131,7 +168,7 @@ def main():
                     print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây")
 
                     if time_difference > config.get("rejoin_threshold", rejoin_threshold):
-                        rejoin_roblox()
+                        rejoin_roblox(config.get("place_id"), config.get("vip_link"))
                 else:
                     print("[PYTHON] Không thể đọc được thời gian từ file trạng thái.")
                 time.sleep(60)
