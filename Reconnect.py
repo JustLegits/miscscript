@@ -6,7 +6,7 @@ import sys
 import urllib.parse  # Để xử lý URL
 
 # Định nghĩa tên file trạng thái và đường dẫn
-status_file_name = "status.txt"
+status_file_name = "status.json" # Đã thay đổi thành status.json
 status_file_path = "/sdcard/Android/data/com.roblox.client/files/gloop/external/Workspace/" + status_file_name
 rejoin_threshold = 300  # 5 phút
 package_name = "com.roblox.client"
@@ -80,7 +80,7 @@ def rejoin_roblox(place_id, vip_link):
             if result.stderr:
                 print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{e.stderr}")
         else:
-             result = subprocess.run(
+            result = subprocess.run(
             ["am", "start", "-n", f"{package_name}/{activity_name}"],
             check=True,
             stdout=subprocess.PIPE,
@@ -191,3 +191,4 @@ if __name__ == "__main__":
         print("\n[PYTHON] Chương trình bị dừng bởi người dùng (Ctrl+C).")
     except Exception as e:
         print(f"[PYTHON] Đã xảy ra lỗi không mong muốn: {e}")
+
