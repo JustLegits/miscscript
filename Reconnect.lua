@@ -1,30 +1,17 @@
 local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
+local filePath = "status.txt"
 
-local player = Players.LocalPlayer
-local statusFile = "status.txt" -- file sẽ được lưu ở thư mục mặc định của KRNL
-
-local function updateStatusFile()
-    local timestamp = os.time()
-    local data = {
-        username = player.Name,
-        time = timestamp
-    }
-
-    local encoded = HttpService:JSONEncode(data)
-
-    local success, err = pcall(function()
-        writefile(statusFile, encoded)
-    end)
-
-    if success then
-        warn("[✔] Ghi thành công:", encoded)
+local success, err = pcall(function()
+    if writefile then
+        local currentTime = os.time()
+        local data = { time = currentTime }
+        writefile(filePath, HttpService:JSONEncode(data))
+        warn("[✅] Đã ghi file status.txt:", currentTime)
     else
-        warn("[✘] Lỗi ghi file:", err)
+        warn("[❌] writefile không khả dụng.")
     end
-end
+end)
 
-while true do
-    updateStatusFile()
-    task.wait(60)
+if not success then
+    warn("[❌] Lỗi khi ghi file:", err)
 end
