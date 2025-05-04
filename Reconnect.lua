@@ -1,17 +1,22 @@
 local HttpService = game:GetService("HttpService")
-local filePath = "status.txt"
 
-local success, err = pcall(function()
-    if writefile then
-        local currentTime = os.time()
-        local data = { time = currentTime }
-        writefile(filePath, HttpService:JSONEncode(data))
-        warn("[✅] Đã ghi file status.txt:", currentTime)
-    else
-        warn("[❌] writefile không khả dụng.")
-    end
-end)
+local function writeStatus()
+    local data = {
+        time = os.time()
+    }
+    local encoded = HttpService:JSONEncode(data)
 
-if not success then
-    warn("[❌] Lỗi khi ghi file:", err)
+    pcall(function()
+        writefile("status.txt", encoded)
+        print("[KRNL] Đã ghi status.txt:", encoded)
+    end)
+end
+
+-- Ghi lần đầu
+writeStatus()
+
+-- Lặp lại mỗi 2 phút
+while true do
+    task.wait(120)
+    writeStatus()
 end
