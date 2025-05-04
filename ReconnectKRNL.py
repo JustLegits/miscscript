@@ -2,12 +2,19 @@ import os
 import json
 import time
 
-CONFIG_PATH = "/sdcard/roblox_config.txt"
-STATUS_FILE_PATH = "/data/data/com.roblox.client/files/krnl/workspace/status.txt"
+CONFIG_PATH = "/sdcard/roblox_rejoin_config.json"
+STATUS_PATH = "/data/data/com.roblox.client/files/krnl/workspace/status.txt"
+
+DEFAULT_CONFIG = {
+    "placeId": "72829404259339",
+    "vipServer": "",
+    "checkInterval": 300  # 5 phút (theo giây)
+}
 
 def load_config():
     if not os.path.exists(CONFIG_PATH):
-        return {"placeId": "", "svv": "", "username": "", "check_interval": 300, "max_delay": 120}
+        save_config(DEFAULT_CONFIG)
+        return DEFAULT_CONFIG
     with open(CONFIG_PATH, "r") as f:
         return json.load(f)
 
@@ -19,85 +26,73 @@ def config_menu():
     config = load_config()
     while True:
         os.system("clear")
-        print("=== Cấu hình Reconnect ===")
-        print(f"1. PlaceId      : {config.get('placeId')}")
-        print(f"2. Server VIP   : {config.get('svv')}")
-        print(f"3. Username     : {config.get('username')}")
-        print(f"4. Thời gian kiểm tra (s): {config.get('check_interval')}")
-        print(f"5. Giới hạn lệch thời gian (s): {config.get('max_delay')}")
-        print("6. Reset config")
-        print("0. Lưu và thoát")
-        choice = input("Chọn mục cần chỉnh: ").strip()
+        print("===== CẤU HÌNH REJOIN =====")
+        print(f"1. placeId hiện tại     : {config['placeId']}")
+        print(f"2. VIP server link      : {config['vipServer'] or '(trống)'}")
+        print(f"3. Thời gian kiểm tra   : {config['checkInterval']} giây")
+        print("4. Reset cấu hình")
+        print("5. Thoát")
+        choice = input("Chọn: ")
         if choice == "1":
-            config["placeId"] = input("Nhập placeId: ").strip()
+            config["placeId"] = input("Nhập placeId mới: ").strip()
         elif choice == "2":
-            config["svv"] = input("Nhập server VIP (nếu có): ").strip()
+            config["vipServer"] = input("Nhập link VIP server (để trống nếu không có): ").strip()
         elif choice == "3":
-            config["username"] = input("Nhập username của bạn trong Roblox: ").strip()
+            try:
+                config["checkInterval"] = int(input("Nhập thời gian (giây): ").strip())
+            except ValueError:
+                print("⛔ Nhập sai định dạng số.")
+                time.sleep(1)
         elif choice == "4":
-            config["check_interval"] = int(input("Nhập thời gian kiểm tra (giây): ").strip())
+            config = DEFAULT_CONFIG.copy()
         elif choice == "5":
-            config["max_delay"] = int(input("Nhập thời gian lệch tối đa (giây): ").strip())
-        elif choice == "6":
-            config = {"placeId": "", "svv": "", "username": "", "check_interval": 300, "max_delay": 120}
-        elif choice == "0":
-            save_config(config)
-            print("Đã lưu cấu hình!")
-            time.sleep(1)
             break
-        else:
-            print("Lựa chọn không hợp lệ!")
-            time.sleep(1)
+        save_config(config)
 
-def read_status_file():
+def read_status():
     try:
-        output = os.popen(f"su -c 'cat {STATUS_FILE_PATH}'").read()
-        return json.loads(output)
+        with open(STATUS_PATH, "r") as f:
+            data = json.load(f)
+            return int(data.get("time", 0))
     except Exception as e:
-        print(f"[Lỗi] Không thể đọc file status.txt: {e}")
-        return None
+        print(f"[!] Không thể đọc status.txt: {e}")
+        return 0
 
 def kill_roblox():
     os.system("su -c 'pkill -f com.roblox.client'")
-    print("[✓] Đã tắt Roblox")
+    print("[✓] Đã đóng Roblox")
 
-def rejoin_game(placeId, svv=""):
-    url = f"roblox://placeId={placeId}"
-    if svv:
-        url += f"&linkCode={svv}"
-    os.system(f"am start -a android.intent.action.VIEW -d "{url}"")
-    print(f"[✓] Đang mở lại game với placeId {placeId}")
+def rejoin_game(config):
+    link = config['vipServer'] if config['vipServer'] else f"roblox://placeId={config['placeId']}"
+    print(f"[⏩] Đang mở lại Roblox tại: {link}")
+    os.system(f"am start -a android.intent.action.VIEW -d \"{link}\"")
 
-def main_loop():
+def main():
     config = load_config()
     while True:
-        status = read_status_file()
-        if not status:
-            time.sleep(config["check_interval"])
-            continue
+        print("\n[📂] Kiểm tra trạng thái...")
+        last_time = read_status()
+        now = int(time.time())
+        time_diff = now - last_time
+        print(f"[⌛] Lần ghi file cách đây {time_diff} giây")
 
-        current_time = int(time.time())
-        file_time = int(status.get("time", 0))
-        username = status.get("username", "").strip()
-
-        print(f"[Debug] Username trong file: {username}, Time: {file_time}")
-        print(f"[Debug] Username cấu hình: {config['username']}")
-
-        if username != config["username"]:
-            print("⚠️ Username không trùng khớp.")
-        elif abs(current_time - file_time) > config["max_delay"]:
-            print("[!] Người chơi offline quá lâu. Bắt đầu rejoin...")
+        if time_diff > 300:
+            print("[⚠️] Quá thời gian cho phép. Bắt đầu rejoin...")
             kill_roblox()
-            time.sleep(2)
-            rejoin_game(config["placeId"], config["svv"])
+            time.sleep(3)
+            rejoin_game(config)
         else:
-            print("✅ Người chơi vẫn online.")
+            print("[✅] Trạng thái bình thường.")
 
-        time.sleep(config["check_interval"])
+        time.sleep(config['checkInterval'])
 
 if __name__ == "__main__":
-    print("Gõ 'config' để chỉnh cấu hình, Enter để tiếp tục:")
-    inp = input().strip().lower()
+    os.makedirs("/sdcard", exist_ok=True)
+    if not os.path.exists(CONFIG_PATH):
+        save_config(DEFAULT_CONFIG)
+
+    inp = input("Gõ 'config' để chỉnh cấu hình, Enter để tiếp tục:\n> ").strip().lower()
     if inp == "config":
         config_menu()
-    main_loop()
+    else:
+        main()
