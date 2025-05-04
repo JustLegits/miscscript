@@ -1,3 +1,9 @@
+# TERMUX require python
+# pkg install python
+# python <(curl -s https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/Reconnect.py)
+# Only Delta hihi (●'◡'●)
+
+
 import time
 import os
 import subprocess
