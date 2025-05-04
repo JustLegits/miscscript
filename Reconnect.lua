@@ -1,7 +1,7 @@
 local HttpService = game:GetService("HttpService")
 
--- Định nghĩa tên file trạng thái
-local statusFileName = "status.txt"
+-- Định nghĩa tên file trạng thái là status.json
+local statusFileName = "status.json"
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
@@ -12,11 +12,11 @@ local function writeStatus()
 
     local success, err = pcall(function()
         writefile(statusFileName, encoded)
-        print("[LUA] Đã ghi status.txt: " .. encoded)
+        print("[LUA] Đã ghi " .. statusFileName .. ": " .. encoded)
     end)
 
     if not success then
-        print("[LUA] Lỗi khi ghi status.txt:", err)
+        print("[LUA] Lỗi khi ghi " .. statusFileName .. ":", err)
     end
 end
 
