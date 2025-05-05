@@ -41,8 +41,15 @@ def force_stop_roblox():
     print("[PYTHON] Buộc dừng Roblox (có root)...")
     try:
         # Lấy danh sách các tiến trình liên quan đến Roblox
-        result = subprocess.run(["su", "-c", "pidof " + package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        pids = result.stdout.strip().split()
+        result = subprocess.run(["su", "-c", "ps -A | grep " + package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        lines = result.stdout.strip().split('\n')
+        pids = []
+        for line in lines:
+            if package_name in line:
+                parts = line.split()
+                if len(parts) > 1 and parts[1].isdigit():
+                    pids.append(parts[1])
+
         if pids:
             print(f"[PYTHON] Các tiến trình Roblox: {pids}")
             # Kill tất cả các tiến trình
@@ -51,8 +58,14 @@ def force_stop_roblox():
             time.sleep(2)  # Đợi một chút
 
             # Kiểm tra lại
-            result = subprocess.run(["su", "-c", "pidof " + package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            if not result.stdout.strip():
+            result = subprocess.run(["su", "-c", "ps -A | grep " + package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            lines = result.stdout.strip().split('\n')
+            running = False
+            for line in lines:
+                if package_name in line:
+                    running = True
+                    break
+            if not running:
                 print("[PYTHON] Roblox đã dừng thành công.")
                 return
             else:
@@ -89,7 +102,7 @@ def rejoin_roblox(place_id, vip_link):
             )
             print(f"[PYTHON] Lệnh am start -d trả về:\n{result.stdout}")
             if result.stderr:
-                print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{result.stderr}")
+                print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{e.stderr}")
         else:
             result = subprocess.run(
                 ["am", "start", "-n", f"{package_name}/{activity_name}", "-W"],
