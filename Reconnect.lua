@@ -4,7 +4,6 @@ local player = Players.LocalPlayer
 local fileName = "status.json"
 
 local isDisconnected = false
-local connectionCheckInterval = 5  -- Kiểm tra mỗi 5 giây
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
@@ -22,6 +21,17 @@ local function writeStatus()
     end
 end
 
+-- Hàm kiểm tra sự tồn tại của người chơi trong Workspace
+local function checkPlayerInWorkspace()
+    if not Workspace:FindFirstChild(player.Name) then
+        if not isDisconnected then
+            isDisconnected = true
+            writeStatus()
+            warn("[LUA] Player's username no longer exists in Workspace. Recording disconnection.")
+        end
+    end
+end
+
 -- Xử lý sự kiện PlayerRemoving
 Players.PlayerRemoving:Connect(function(removingPlayer)
     if removingPlayer == player then
@@ -31,29 +41,13 @@ Players.PlayerRemoving:Connect(function(removingPlayer)
     end
 end)
 
--- Xử lý khi trò chơi đóng
-game:BindToClose(function()
-    isDisconnected = true
-    writeStatus()
-    warn("[LUA] Game is closing. Recording disconnection.")
-end)
-
--- Kiểm tra định kỳ sự tồn tại của Player
-game:GetService("RunService").Heartbeat:Connect(function()
-    if not Players:FindFirstChild(player.Name) then
-        if not isDisconnected then  -- Chỉ khi chưa báo ngắt kết nối
-            isDisconnected = true
-            writeStatus()
-            warn("[LUA] Player object no longer exists. Recording disconnection.")
-        end
-    end
-end)
-
 -- Ghi trạng thái ban đầu
 writeStatus()
 
--- Lặp lại mỗi 2 phút để cập nhật trạng thái
+-- Lặp lại mỗi 2 giây để kiểm tra
 while true do
-    task.wait(120)
+    task.wait(2)
+    checkPlayerInWorkspace()
+    task.wait(120)  -- Vẫn cập nhật thời gian định kỳ
     writeStatus()
 end
