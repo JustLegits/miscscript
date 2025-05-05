@@ -14,25 +14,24 @@ activity_name = "com.roblox.client.MainActivity"
 config_file = "config.json"
 global running
 
-# Hàm giả lập HttpService:JSONDecode
-def HttpService_JSONDecode(data):
-    """Giả lập HttpService:JSONDecode của Roblox Lua bằng thư viện json của Python."""
-    try:
-        return json.loads(data)
-    except json.JSONDecodeError as e:
-        print(f"[PYTHON] Lỗi giải mã JSON: {e}")
-        return None
+# Hàm giả lập HttpService:JSONDecode (không cần thiết ở đây, có thể bỏ)
+# def HttpService_JSONDecode(data):
+#     """Giả lập HttpService:JSONDecode của Roblox Lua bằng thư viện json của Python."""
+#     try:
+#         return json.loads(data)
+#     except json.JSONDecodeError as e:
+#         print(f"[PYTHON] Lỗi giải mã JSON: {e}")
+#         return None
 
 def get_status_time():
-    """Đọc thời gian từ file trạng thái. Trả về None nếu có lỗi."""
+    """Đọc thời gian và trạng thái ngắt kết nối từ file status.json."""
     try:
         with open(status_file_path, "r") as f:
-            encoded_data = f.read()
-        data = HttpService_JSONDecode(encoded_data)
-        return data.get("time")
+            data = json.load(f)  # Sử dụng json.load
+        return data.get("time"), data.get("isDisconnected", False) # Đọc cả thời gian và trạng thái
     except Exception as e:
         print(f"[PYTHON] Lỗi khi đọc file trạng thái: {e}")
-        return None
+        return None, False
 
 def force_stop_roblox():
     """Buộc dừng ứng dụng Roblox."""
@@ -152,13 +151,13 @@ def main():
             print("[PYTHON] Bắt đầu chạy...")
             running = True
             while running:
-                status_time = get_status_time()
+                status_time, is_disconnected = get_status_time() # Nhận cả thời gian và trạng thái
                 if status_time:
                     current_time = time.time()
                     time_difference = current_time - status_time
-                    print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây")
+                    print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây, Disconnected: {is_disconnected}") #in cả trạng thái
 
-                    if time_difference > config.get("rejoin_threshold", rejoin_threshold):
+                    if time_difference > config.get("rejoin_threshold", rejoin_threshold) and not is_disconnected: # Kiểm tra cả thời gian và trạng thái ngắt kết nối
                         rejoin_roblox(config.get("place_id"), config.get("vip_link"))
                 else:
                     print("[PYTHON] Không thể đọc được thời gian từ file trạng thái.")
