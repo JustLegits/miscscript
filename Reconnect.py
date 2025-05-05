@@ -64,7 +64,7 @@ def rejoin_roblox(place_id, vip_link):
             )
             print(f"[PYTHON] Lệnh am start -d trả về:\n{result.stdout}")
             if result.stderr:
-                print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{e.stderr}")
+                print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{result.stderr}") # In lỗi từ stderr
         else:
             result = subprocess.run(
             ["am", "start", "-n", f"{package_name}/{activity_name}"],
@@ -73,10 +73,9 @@ def rejoin_roblox(place_id, vip_link):
             stderr=subprocess.PIPE,
             text=True,
         )
-
     except subprocess.CalledProcessError as e:
         print(f"[PYTHON] Lỗi khi chạy lệnh am start: {e}")
-        print(f"[PYTHON] Lệnh am start trả về (lỗi):\n{e.stderr}")
+        print(f"[PYTHON] Lệnh am start trả về (lỗi):\n{e.stderr}") # In lỗi từ stderr
 
 def load_config():
     """Tải cấu hình từ file config.json. Trả về một dictionary."""
@@ -149,7 +148,7 @@ def main():
             running = True
             while running:
                 status_time, is_disconnected = get_status_time()
-                if status_time:
+                if status_time is not None: # Đã sửa lỗi này.
                     current_time = time.time()
                     time_difference = current_time - status_time
                     print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây, Disconnected: {is_disconnected}")
@@ -175,6 +174,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n[PYTHON] Chương trình bị dừng bởi người dùng (Ctrl+C).")
-    except Exception as e:
+    except Exception as e: # Thêm dòng này để bắt lỗi không mong muốn.
         print(f"[PYTHON] Đã xảy ra lỗi không mong muốn: {e}")
-
