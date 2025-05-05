@@ -2,6 +2,7 @@
 # pkg install python
 # python <(curl -s https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/Reconnect.py)
 # Only Delta hihi (●'◡'●)
+# Với quyền root
 
 import time
 import os
@@ -37,32 +38,31 @@ def get_status_time():
 
 def force_stop_roblox():
     """Buộc dừng ứng dụng Roblox."""
-    print("[PYTHON] Buộc dừng Roblox...")
+    print("[PYTHON] Buộc dừng Roblox (có root)...")
     try:
-        # Thử dùng killall trước
-        subprocess.run(["killall", package_name], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        time.sleep(2)
+        # Lấy danh sách các tiến trình liên quan đến Roblox
+        result = subprocess.run(["su", "-c", "pidof " + package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        pids = result.stdout.strip().split()
+        if pids:
+            print(f"[PYTHON] Các tiến trình Roblox: {pids}")
+            # Kill tất cả các tiến trình
+            for pid in pids:
+                subprocess.run(["su", "-c", f"kill -9 {pid}"], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            time.sleep(2)  # Đợi một chút
 
-        # Sử dụng am force-stop
-        subprocess.run(["am", "force-stop", package_name], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        time.sleep(2)
-
-        # Kiểm tra tiến trình và kill nếu vẫn còn chạy
-        for _ in range(5):  # Tăng số lần thử
-            result = subprocess.run(["pidof", package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            # Kiểm tra lại
+            result = subprocess.run(["su", "-c", "pidof " + package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if not result.stdout.strip():
                 print("[PYTHON] Roblox đã dừng thành công.")
                 return
             else:
-                pids = result.stdout.strip().split()
-                print(f"[PYTHON] Roblox vẫn đang chạy (PIDs: {pids}), thử kill...")
-                for pid in pids:
-                    subprocess.run(["kill", "-9", pid], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                time.sleep(2)
-        print("[PYTHON] Không thể dừng Roblox. Tiếp tục...")  # In ra sau 5 lần thử
+                print("[PYTHON] Roblox vẫn đang chạy sau khi kill.")
+        else:
+            print("[PYTHON] Không tìm thấy tiến trình Roblox nào đang chạy.")
+            return
 
     except Exception as e:
-        print(f"[PYTHON] Lỗi khi dừng ứng dụng: {e}")
+        print(f"[PYTHON] Lỗi khi dừng ứng dụng (có root): {e}")
 
 def rejoin_roblox(place_id, vip_link):
     """Khởi động lại ứng dụng Roblox và cố gắng join lại bằng deep linking."""
