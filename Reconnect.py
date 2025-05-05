@@ -153,7 +153,7 @@ def main():
                     current_time = time.time()
                     time_difference = current_time - status_time
                     print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây, Disconnected: {is_disconnected}")
-                    if time_difference > config.get("rejoin_threshold", rejoin_threshold) and not is_disconnected:
+                    if is_disconnected or time_difference > config.get("rejoin_threshold", rejoin_threshold):
                         rejoin_roblox(config.get("place_id"), config.get("vip_link"))
                 else:
                     print("[PYTHON] Không thể đọc được thời gian từ file trạng thái.")
