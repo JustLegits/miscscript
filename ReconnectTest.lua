@@ -6,14 +6,12 @@ local fileName = "status.json"
 
 local isDisconnected = false
 local checkInterval = 120
-local teleportFailed = false  -- Thay đổi thành boolean
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
     local data = {
         time = os.time(),
         isDisconnected = isDisconnected,
-        teleportFailed = teleportFailed,
     }
     local encoded = HttpService:JSONEncode(data)
     local success, err = pcall(function()
@@ -29,7 +27,6 @@ end
 Players.PlayerRemoving:Connect(function(removingPlayer)
     if removingPlayer == player then
         isDisconnected = true
-        teleportFailed = false -- Reset teleportFailed
         writeStatus()
         warn("[LUA] PlayerRemoving: Player removed.")
     end
@@ -40,7 +37,6 @@ local function checkPlayerGui()
     if not player:FindFirstChild("PlayerGui") then
         if not isDisconnected then
             isDisconnected = true
-            teleportFailed = false -- Reset teleportFailed
             writeStatus()
             warn("[LUA] PlayerGui không tồn tại: Có thể đã disconnect.")
         end
@@ -52,44 +48,25 @@ local function checkPlayerParent()
     if player.Parent ~= Players then
         if not isDisconnected then
             isDisconnected = true
-            teleportFailed = false -- Reset teleportFailed
             writeStatus()
             warn("[LUA] Player.Parent không phải là Players: Có thể đã disconnect.")
         end
     end
 end
 
--- 4. Phát hiện ErrorPrompt (mở rộng)
+-- 4. Phát hiện ErrorPrompt (đã chỉnh sửa)
 CoreGui.ChildAdded:Connect(function(child)
     if child:FindFirstChild("ErrorPrompt") then
         local errorPrompt = child:FindFirstChild("ErrorPrompt")
         local textLabel = errorPrompt:FindFirstChild("TextLabel")
         if textLabel then
             local errorText = textLabel.Text
-            if string.find(errorText, "Error Code: ") then
+            if string.find(errorText, "Error Code: ") or
+               string.find(errorText, "You were kicked") or
+               string.find(errorText, "connection lost") then
                 isDisconnected = true
-                teleportFailed = false -- Reset teleportFailed
                 writeStatus()
-                warn("[LUA] ErrorPrompt: Phát hiện mã lỗi: " .. errorText)
-            elseif string.find(errorText, "You were kicked") then
-                isDisconnected = true
-                teleportFailed = false -- Reset teleportFailed
-                writeStatus()
-                warn("[LUA] ErrorPrompt: Phát hiện thông báo bị kick: " .. errorText)
-            elseif string.find(errorText, "connection lost") then
-                isDisconnected = true
-                teleportFailed = false -- Reset teleportFailed
-                writeStatus()
-                warn("[LUA] ErrorPrompt: Phát hiện mất kết nối: " .. errorText)
-            elseif string.find(errorText, "Teleport Failed") then
-                teleportFailed = true
-                isDisconnected = false  -- Đặt isDisconnected thành false
-                writeStatus()
-                warn("[LUA] ErrorPrompt: Phát hiện Teleport Failed.")
-            else
-                teleportFailed = false
-                isDisconnected = false
-                writeStatus()
+                warn("[LUA] ErrorPrompt: Phát hiện lỗi: " .. errorText)
             end
         end
     end
@@ -105,7 +82,6 @@ if mt then
         local method = getnamecallmethod()
         if method == "Kick" and self == player then
             isDisconnected = true
-            teleportFailed = false  -- Reset teleportFailed
             writeStatus()
             warn("[LUA] __namecall: Phát hiện bị kick.")
         end
