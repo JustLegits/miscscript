@@ -39,10 +39,30 @@ def force_stop_roblox():
     """Buộc dừng ứng dụng Roblox."""
     print("[PYTHON] Buộc dừng Roblox...")
     try:
-        # Sử dụng am force-stop thay vì am kill
-        subprocess.run(["am", "force-stop", package_name], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        # Thử dùng killall trước
+        subprocess.run(["killall", package_name], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        time.sleep(2)
+
+        # Sử dụng am force-stop
+        subprocess.run(["am", "force-stop", package_name], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        time.sleep(2)
+
+        # Kiểm tra tiến trình và kill nếu vẫn còn chạy
+        for _ in range(5):  # Tăng số lần thử
+            result = subprocess.run(["pidof", package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if not result.stdout.strip():
+                print("[PYTHON] Roblox đã dừng thành công.")
+                return
+            else:
+                pids = result.stdout.strip().split()
+                print(f"[PYTHON] Roblox vẫn đang chạy (PIDs: {pids}), thử kill...")
+                for pid in pids:
+                    subprocess.run(["kill", "-9", pid], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                time.sleep(2)
+        print("[PYTHON] Không thể dừng Roblox. Tiếp tục...")  # In ra sau 5 lần thử
+
     except Exception as e:
-        print(f"[PYTHON] Lỗi khi chạy lệnh dừng ứng dụng: {e}")
+        print(f"[PYTHON] Lỗi khi dừng ứng dụng: {e}")
 
 def rejoin_roblox(place_id, vip_link):
     """Khởi động lại ứng dụng Roblox và cố gắng join lại bằng deep linking."""
