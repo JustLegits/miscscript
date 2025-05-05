@@ -39,9 +39,8 @@ def force_stop_roblox():
     """Buộc dừng ứng dụng Roblox."""
     print("[PYTHON] Buộc dừng Roblox...")
     try:
-        # Sử dụng pkill trước am kill
-        subprocess.run(["pkill", "com.roblox.client"], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        subprocess.run(["am", "kill", package_name], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        # Sử dụng am force-stop thay vì am kill
+        subprocess.run(["am", "force-stop", package_name], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     except Exception as e:
         print(f"[PYTHON] Lỗi khi chạy lệnh dừng ứng dụng: {e}")
 
@@ -50,7 +49,7 @@ def rejoin_roblox(place_id, vip_link):
     print("[PYTHON] Tiến hành Rejoin Roblox...")
     try:
         force_stop_roblox()
-        time.sleep(5)
+        time.sleep(5) # Thêm thời gian chờ 5 giây
 
         # Xây dựng URL deep linking
         rejoin_url = ""
@@ -196,4 +195,3 @@ if __name__ == "__main__":
         print("\n[PYTHON] Chương trình bị dừng bởi người dùng (Ctrl+C).")
     except Exception as e:  # Thêm dòng này để bắt lỗi không mong muốn.
         print(f"[PYTHON] Đã xảy ra lỗi không mong muốn: {e}")
-
