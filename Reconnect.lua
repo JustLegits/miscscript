@@ -5,6 +5,7 @@ local player = Players.LocalPlayer
 local fileName = "status.json"
 
 local isDisconnected = false
+local checkInterval = 2 -- Kiểm tra thường xuyên hơn
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
@@ -22,39 +23,86 @@ local function writeStatus()
     end
 end
 
--- Hàm kiểm tra mã lỗi chung
-local function checkGenericErrorCode(text)
-    return string.find(text, "Error Code: ") ~= nil
-end
-
--- Phát hiện ErrorPrompt xuất hiện
-CoreGui.ChildAdded:Connect(function(child)
-    if child:FindFirstChild("ErrorPrompt") then
-        local errorPrompt = child:FindFirstChild("ErrorPrompt")
-        local textLabel = errorPrompt:FindFirstChild("TextLabel")
-
-        if textLabel and checkGenericErrorCode(textLabel.Text) then
-            isDisconnected = true
-            writeStatus()
-            warn("[LUA] Phát hiện ErrorPrompt với mã lỗi. Recording disconnection.")
-        end
-    end
-end)
-
--- Xử lý sự kiện PlayerRemoving
+-- 1. Xử lý sự kiện PlayerRemoving
 Players.PlayerRemoving:Connect(function(removingPlayer)
     if removingPlayer == player then
         isDisconnected = true
         writeStatus()
-        warn("[LUA] Player removed. Recording disconnection.")
+        warn("[LUA] PlayerRemoving: Player removed.")
     end
 end)
+
+-- 2. Kiểm tra sự tồn tại của PlayerGui
+local function checkPlayerGui()
+    if not player:FindFirstChild("PlayerGui") then
+        if not isDisconnected then
+            isDisconnected = true
+            writeStatus()
+            warn("[LUA] PlayerGui không tồn tại: Có thể đã disconnect.")
+        end
+    end
+end
+
+-- 3. Kiểm tra Parent của Player
+local function checkPlayerParent()
+    if player.Parent ~= Players then
+        if not isDisconnected then
+            isDisconnected = true
+            writeStatus()
+            warn("[LUA] Player.Parent không phải là Players: Có thể đã disconnect.")
+        end
+    end
+end
+
+-- 4. Phát hiện ErrorPrompt (mở rộng)
+CoreGui.ChildAdded:Connect(function(child)
+    if child:FindFirstChild("ErrorPrompt") then
+        local errorPrompt = child:FindFirstChild("ErrorPrompt")
+        local textLabel = errorPrompt:FindFirstChild("TextLabel")
+        if textLabel then
+            local errorText = textLabel.Text
+            if string.find(errorText, "Error Code: ") then  -- Kiểm tra mã lỗi chung
+                isDisconnected = true
+                writeStatus()
+                warn("[LUA] ErrorPrompt: Phát hiện mã lỗi: " .. errorText)
+            elseif string.find(errorText, "You were kicked") then --Kiểm tra thông báo bị kick
+                isDisconnected = true
+                writeStatus()
+                warn("[LUA] ErrorPrompt: Phát hiện thông báo bị kick: " .. errorText)
+            elseif string.find(errorText, "connection lost") then  --Kiểm tra mất kết nối
+                isDisconnected = true
+                writeStatus()
+                warn("[LUA] ErrorPrompt: Phát hiện mất kết nối: " .. errorText)
+            end
+        end
+    end
+end)
+
+
+-- 5. Phát hiện bị kick (hook Kick function) - cải tiến
+local mt = getrawmetatable(game)
+if mt then
+    setreadonly(mt, false)
+    local oldNamecall = mt.__namecall
+    mt.__namecall = newcclosure(function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+        if method == "Kick" and self == player then
+            isDisconnected = true
+            writeStatus()
+            warn("[LUA] __namecall: Phát hiện bị kick.")
+        end
+        return oldNamecall(self, unpack(args))
+    end)
+end
 
 -- Ghi trạng thái ban đầu
 writeStatus()
 
--- Lặp lại mỗi 2 phút
+-- Lặp lại để kiểm tra
 while true do
-    task.wait(120)
-    writeStatus()
+    task.wait(checkInterval)
+    checkPlayerGui()
+    checkPlayerParent()
+    -- Các kiểm tra khác có thể thêm vào đây
 end
