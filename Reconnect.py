@@ -60,7 +60,7 @@ def rejoin_roblox(place_id, vip_link):
             rejoin_url = f"roblox://placeid={place_id}"
 
         if rejoin_url:
-            am_command = ["am", "start", "-a", "android.intent.action.VIEW", "-d", rejoin_url, "-f", "0x10000000"]  # Thêm cờ FLAG_ACTIVITY_NEW_TASK
+            am_command = ["am", "start", "-a", "android.intent.action.VIEW", "-d", rejoin_url, "-f", "0x10000000", "-W"]  # Thêm cờ FLAG_ACTIVITY_NEW_TASK và -W
             result = subprocess.run(
                 am_command,
                 check=True,
@@ -73,7 +73,7 @@ def rejoin_roblox(place_id, vip_link):
                 print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{result.stderr}")  # In lỗi từ stderr
         else:
             result = subprocess.run(
-                ["am", "start", "-n", f"{package_name}/{activity_name}"],
+                ["am", "start", "-n", f"{package_name}/{activity_name}", "-W"], # Thêm -W
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -196,3 +196,4 @@ if __name__ == "__main__":
         print("\n[PYTHON] Chương trình bị dừng bởi người dùng (Ctrl+C).")
     except Exception as e:  # Thêm dòng này để bắt lỗi không mong muốn.
         print(f"[PYTHON] Đã xảy ra lỗi không mong muốn: {e}")
+
