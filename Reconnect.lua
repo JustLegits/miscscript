@@ -5,7 +5,7 @@ local player = Players.LocalPlayer
 local fileName = "status.json"
 
 local isDisconnected = false
-local checkInterval = 2 -- Kiểm tra thường xuyên hơn
+local checkInterval = 120 -- Đặt thành 120 để cập nhật mỗi 2 phút
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
@@ -61,15 +61,15 @@ CoreGui.ChildAdded:Connect(function(child)
         local textLabel = errorPrompt:FindFirstChild("TextLabel")
         if textLabel then
             local errorText = textLabel.Text
-            if string.find(errorText, "Error Code: ") then  -- Kiểm tra mã lỗi chung
+            if string.find(errorText, "Error Code: ") then
                 isDisconnected = true
                 writeStatus()
                 warn("[LUA] ErrorPrompt: Phát hiện mã lỗi: " .. errorText)
-            elseif string.find(errorText, "You were kicked") then --Kiểm tra thông báo bị kick
+            elseif string.find(errorText, "You were kicked") then
                 isDisconnected = true
                 writeStatus()
                 warn("[LUA] ErrorPrompt: Phát hiện thông báo bị kick: " .. errorText)
-            elseif string.find(errorText, "connection lost") then  --Kiểm tra mất kết nối
+            elseif string.find(errorText, "connection lost") then
                 isDisconnected = true
                 writeStatus()
                 warn("[LUA] ErrorPrompt: Phát hiện mất kết nối: " .. errorText)
@@ -77,7 +77,6 @@ CoreGui.ChildAdded:Connect(function(child)
         end
     end
 end)
-
 
 -- 5. Phát hiện bị kick (hook Kick function) - cải tiến
 local mt = getrawmetatable(game)
@@ -99,10 +98,10 @@ end
 -- Ghi trạng thái ban đầu
 writeStatus()
 
--- Lặp lại để kiểm tra
+-- Lặp lại để kiểm tra và cập nhật trạng thái định kỳ
 while true do
-    task.wait(checkInterval)
+    task.wait(checkInterval) -- Đã sửa thành biến checkInterval
     checkPlayerGui()
     checkPlayerParent()
-    -- Các kiểm tra khác có thể thêm vào đây
+    writeStatus() -- Gọi writeStatus() để cập nhật file
 end
