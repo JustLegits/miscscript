@@ -92,7 +92,7 @@ def rejoin_roblox(place_id, vip_link):
             rejoin_url = f"roblox://placeid={place_id}"
 
         if rejoin_url:
-            am_command = ["am", "start", "-a", "android.intent.action.VIEW", "-d", rejoin_url, "-f", "0x10000000", "-W"]
+            am_command = ["am", "start", "-a", "android.intent.action.VIEW", "-d", rejoin_url, "-f", "0x10008000", "-W"]  # Thêm FLAG_ACTIVITY_CLEAR_TOP
             result = subprocess.run(
                 am_command,
                 check=True,
@@ -102,7 +102,7 @@ def rejoin_roblox(place_id, vip_link):
             )
             print(f"[PYTHON] Lệnh am start -d trả về:\n{result.stdout}")
             if result.stderr:
-                print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{e.stderr}")
+                print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{result.stderr}")
         else:
             result = subprocess.run(
                 ["am", "start", "-n", f"{package_name}/{activity_name}", "-W"],
