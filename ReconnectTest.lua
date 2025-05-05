@@ -5,7 +5,7 @@ local player = Players.LocalPlayer
 local fileName = "status.json"
 
 local isDisconnected = false
-local checkInterval = 2 -- Giảm thời gian kiểm tra để phản ứng nhanh hơn với các thay đổi.
+local checkInterval = 60 -- Giảm thời gian kiểm tra để phản ứng nhanh hơn với các thay đổi.
 local isTeleporting = false
 local teleportTimeout = nil -- Thêm biến để theo dõi timeout
 
