@@ -3,7 +3,6 @@
 # python <(curl -s https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/Reconnect.py)
 # Only Delta hihi (●'◡'●)
 
-
 import time
 import os
 import subprocess
@@ -26,6 +25,12 @@ def get_status_time():
         with open(status_file_path, "r") as f:
             data = json.load(f)
         return data.get("time"), data.get("isDisconnected", False)
+    except FileNotFoundError:
+        print(f"[PYTHON] File trạng thái không tồn tại: {status_file_path}")
+        return None, False
+    except json.JSONDecodeError as e:
+        print(f"[PYTHON] Lỗi giải mã JSON trong file trạng thái: {e}")
+        return None, False
     except Exception as e:
         print(f"[PYTHON] Lỗi khi đọc file trạng thái: {e}")
         return None, False
@@ -34,6 +39,7 @@ def force_stop_roblox():
     """Buộc dừng ứng dụng Roblox."""
     print("[PYTHON] Buộc dừng Roblox...")
     try:
+        # Sử dụng pkill trước am kill
         subprocess.run(["pkill", "com.roblox.client"], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         subprocess.run(["am", "kill", package_name], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     except Exception as e:
@@ -54,7 +60,7 @@ def rejoin_roblox(place_id, vip_link):
             rejoin_url = f"roblox://placeid={place_id}"
 
         if rejoin_url:
-            am_command = ["am", "start", "-a", "android.intent.action.VIEW", "-d", rejoin_url]
+            am_command = ["am", "start", "-a", "android.intent.action.VIEW", "-d", rejoin_url, "-f", "0x10000000"]  # Thêm cờ FLAG_ACTIVITY_NEW_TASK
             result = subprocess.run(
                 am_command,
                 check=True,
@@ -64,18 +70,20 @@ def rejoin_roblox(place_id, vip_link):
             )
             print(f"[PYTHON] Lệnh am start -d trả về:\n{result.stdout}")
             if result.stderr:
-                print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{result.stderr}") # In lỗi từ stderr
+                print(f"[PYTHON] Lỗi từ lệnh am start -d:\n{result.stderr}")  # In lỗi từ stderr
         else:
             result = subprocess.run(
-            ["am", "start", "-n", f"{package_name}/{activity_name}"],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+                ["am", "start", "-n", f"{package_name}/{activity_name}"],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
     except subprocess.CalledProcessError as e:
         print(f"[PYTHON] Lỗi khi chạy lệnh am start: {e}")
-        print(f"[PYTHON] Lệnh am start trả về (lỗi):\n{e.stderr}") # In lỗi từ stderr
+        print(f"[PYTHON] Lệnh am start trả về (lỗi):\n{e.stderr}")  # In lỗi từ stderr
+    except Exception as e:
+        print(f"[PYTHON] Lỗi không mong muốn trong rejoin_roblox: {e}")
 
 def load_config():
     """Tải cấu hình từ file config.json. Trả về một dictionary."""
@@ -87,6 +95,9 @@ def load_config():
         return {}
     except json.JSONDecodeError as e:
         print(f"[PYTHON] Lỗi giải mã JSON trong file cấu hình: {e}")
+        return {}
+    except Exception as e:
+        print(f"[PYTHON] Lỗi khi tải file cấu hình: {e}")
         return {}
 
 def save_config(config):
@@ -103,11 +114,20 @@ def get_config_input():
     config = {}
     config["place_id"] = input("Nhập Place ID: ")
     config["vip_link"] = input("Nhập Server VIP Link: ")
-    try:
-        config["rejoin_threshold"] = int(input("Nhập thời gian chờ (giây): "))
-    except ValueError:
-        print("[PYTHON] Giá trị thời gian chờ không hợp lệ, sử dụng mặc định 300s.")
-        config["rejoin_threshold"] = 300
+    while True:
+        try:
+            rejoin_threshold_input = input("Nhập thời gian chờ (giây): ")
+            if not rejoin_threshold_input:
+                print("[PYTHON] Không nhập thời gian chờ, sử dụng mặc định 300s.")
+                config["rejoin_threshold"] = 300
+                break
+            config["rejoin_threshold"] = int(rejoin_threshold_input)
+            if config["rejoin_threshold"] <= 0:
+                print("[PYTHON] Thời gian chờ phải lớn hơn 0.")
+            else:
+                break
+        except ValueError:
+            print("[PYTHON] Giá trị thời gian chờ không hợp lệ, vui lòng nhập lại.")
     return config
 
 def display_menu(config, config_set):
@@ -148,7 +168,7 @@ def main():
             running = True
             while running:
                 status_time, is_disconnected = get_status_time()
-                if status_time is not None: # Đã sửa lỗi này.
+                if status_time is not None:  # Đã sửa lỗi này.
                     current_time = time.time()
                     time_difference = current_time - status_time
                     print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây, Disconnected: {is_disconnected}")
@@ -174,5 +194,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n[PYTHON] Chương trình bị dừng bởi người dùng (Ctrl+C).")
-    except Exception as e: # Thêm dòng này để bắt lỗi không mong muốn.
+    except Exception as e:  # Thêm dòng này để bắt lỗi không mong muốn.
         print(f"[PYTHON] Đã xảy ra lỗi không mong muốn: {e}")
