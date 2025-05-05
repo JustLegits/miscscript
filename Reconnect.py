@@ -9,54 +9,35 @@ import os
 import subprocess
 import json
 import sys
-import urllib.parse  # Để xử lý URL
+import urllib.parse
 
 # Định nghĩa tên file trạng thái và đường dẫn
-status_file_name = "status.json" # Đã thay đổi thành status.json
+status_file_name = "status.json"
 status_file_path = "/sdcard/Android/data/com.roblox.client/files/gloop/external/Workspace/" + status_file_name
-rejoin_threshold = 300  # 5 phút
+rejoin_threshold = 300
 package_name = "com.roblox.client"
 activity_name = "com.roblox.client.MainActivity"
 config_file = "config.json"
 global running
 
-# Hàm giả lập HttpService:JSONDecode
-def HttpService_JSONDecode(data):
-    """Giả lập HttpService:JSONDecode của Roblox Lua bằng thư viện json của Python."""
-    try:
-        return json.loads(data)
-    except json.JSONDecodeError as e:
-        print(f"[PYTHON] Lỗi giải mã JSON: {e}")
-        return None
-
 def get_status_time():
-    """Đọc thời gian từ file trạng thái. Trả về None nếu có lỗi."""
+    """Đọc thời gian và trạng thái ngắt kết nối từ file status.json."""
     try:
         with open(status_file_path, "r") as f:
-            encoded_data = f.read()
-        data = HttpService_JSONDecode(encoded_data)
-        return data.get("time")
+            data = json.load(f)
+        return data.get("time"), data.get("isDisconnected", False)
     except Exception as e:
         print(f"[PYTHON] Lỗi khi đọc file trạng thái: {e}")
-        return None
+        return None, False
 
 def force_stop_roblox():
     """Buộc dừng ứng dụng Roblox."""
     print("[PYTHON] Buộc dừng Roblox...")
     try:
-        result = subprocess.run(
-            ["am", "force-stop", package_name],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        print(f"[PYTHON] Lệnh am force-stop trả về:\n{result.stdout}")
-        if result.stderr:
-            print(f"[PYTHON] Lỗi từ lệnh am force-stop:\n{e.stderr}")
-    except subprocess.CalledProcessError as e:
-        print(f"[PYTHON] Lỗi khi chạy lệnh am force-stop: {e}")
-        print(f"[PYTHON] Lệnh am force-stop trả về (lỗi):\n{e.stderr}")
+        subprocess.run(["pkill", "com.roblox.client"], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        subprocess.run(["am", "kill", package_name], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    except Exception as e:
+        print(f"[PYTHON] Lỗi khi chạy lệnh dừng ứng dụng: {e}")
 
 def rejoin_roblox(place_id, vip_link):
     """Khởi động lại ứng dụng Roblox và cố gắng join lại bằng deep linking."""
@@ -73,7 +54,6 @@ def rejoin_roblox(place_id, vip_link):
             rejoin_url = f"roblox://placeid={place_id}"
 
         if rejoin_url:
-            # Sử dụng lệnh am start -d để mở URL
             am_command = ["am", "start", "-a", "android.intent.action.VIEW", "-d", rejoin_url]
             result = subprocess.run(
                 am_command,
@@ -97,6 +77,7 @@ def rejoin_roblox(place_id, vip_link):
     except subprocess.CalledProcessError as e:
         print(f"[PYTHON] Lỗi khi chạy lệnh am start: {e}")
         print(f"[PYTHON] Lệnh am start trả về (lỗi):\n{e.stderr}")
+
 def load_config():
     """Tải cấu hình từ file config.json. Trả về một dictionary."""
     try:
@@ -167,13 +148,12 @@ def main():
             print("[PYTHON] Bắt đầu chạy...")
             running = True
             while running:
-                status_time = get_status_time()
+                status_time, is_disconnected = get_status_time()
                 if status_time:
                     current_time = time.time()
                     time_difference = current_time - status_time
-                    print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây")
-
-                    if time_difference > config.get("rejoin_threshold", rejoin_threshold):
+                    print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây, Disconnected: {is_disconnected}")
+                    if time_difference > config.get("rejoin_threshold", rejoin_threshold) and not is_disconnected:
                         rejoin_roblox(config.get("place_id"), config.get("vip_link"))
                 else:
                     print("[PYTHON] Không thể đọc được thời gian từ file trạng thái.")
@@ -197,4 +177,3 @@ if __name__ == "__main__":
         print("\n[PYTHON] Chương trình bị dừng bởi người dùng (Ctrl+C).")
     except Exception as e:
         print(f"[PYTHON] Đã xảy ra lỗi không mong muốn: {e}")
-
