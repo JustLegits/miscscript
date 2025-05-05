@@ -6,6 +6,7 @@ local fileName = "status.json"
 
 local isDisconnected = false
 local checkInterval = 120
+local isTeleporting = false  -- Thêm biến theo dõi trạng thái Teleport
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
@@ -35,7 +36,7 @@ end)
 -- 2. Kiểm tra sự tồn tại của PlayerGui
 local function checkPlayerGui()
     if not player:FindFirstChild("PlayerGui") then
-        if not isDisconnected then
+        if not isDisconnected and not isTeleporting then -- Thêm kiểm tra isTeleporting
             isDisconnected = true
             writeStatus()
             warn("[LUA] PlayerGui không tồn tại: Có thể đã disconnect.")
@@ -46,7 +47,7 @@ end
 -- 3. Kiểm tra Parent của Player
 local function checkPlayerParent()
     if player.Parent ~= Players then
-        if not isDisconnected then
+        if not isDisconnected and not isTeleporting then -- Thêm kiểm tra isTeleporting
             isDisconnected = true
             writeStatus()
             warn("[LUA] Player.Parent không phải là Players: Có thể đã disconnect.")
@@ -67,6 +68,9 @@ CoreGui.ChildAdded:Connect(function(child)
                 isDisconnected = true
                 writeStatus()
                 warn("[LUA] ErrorPrompt: Phát hiện lỗi: " .. errorText)
+            elseif string.find(errorText, "Teleporting") then -- Phát hiện bắt đầu Teleport
+                isTeleporting = true
+                warn("[LUA] Phát hiện Teleporting...")
             end
         end
     end
@@ -88,6 +92,18 @@ if mt then
         return oldNamecall(self, unpack(args))
     end)
 end
+
+-- 6. Xử lý khi Teleport xong (PlayerGui xuất hiện trở lại)
+Players.LocalPlayer.Changed:Connect(function(property)
+    if property == "PlayerGui" then
+        if isTeleporting then
+            isTeleporting = false -- Reset trạng thái Teleport
+            isDisconnected = false -- Đặt lại isDisconnected để tránh nhận diện sai
+            writeStatus()
+            warn("[LUA] Teleport hoàn thành. Đặt lại trạng thái.")
+        end
+    end
+end)
 
 -- Ghi trạng thái ban đầu
 writeStatus()
