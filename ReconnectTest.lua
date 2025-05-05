@@ -5,9 +5,7 @@ local player = Players.LocalPlayer
 local fileName = "status.json"
 
 local isDisconnected = false
-local checkInterval = 60 -- Giảm thời gian kiểm tra để phản ứng nhanh hơn với các thay đổi.
-local isTeleporting = false
-local teleportTimeout = nil -- Thêm biến để theo dõi timeout
+local checkInterval = 60  -- Đặt thời gian kiểm tra thành 60 giây (1 phút)
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
@@ -37,7 +35,7 @@ end)
 -- 2. Kiểm tra sự tồn tại của PlayerGui
 local function checkPlayerGui()
     if not player:FindFirstChild("PlayerGui") then
-        if not isDisconnected and not isTeleporting then
+        if not isDisconnected then
             isDisconnected = true
             writeStatus()
             warn("[LUA] PlayerGui không tồn tại: Có thể đã disconnect.")
@@ -48,7 +46,7 @@ end
 -- 3. Kiểm tra Parent của Player
 local function checkPlayerParent()
     if player.Parent ~= Players then
-        if not isDisconnected and not isTeleporting then
+        if not isDisconnected then
             isDisconnected = true
             writeStatus()
             warn("[LUA] Player.Parent không phải là Players: Có thể đã disconnect.")
@@ -69,19 +67,6 @@ CoreGui.ChildAdded:Connect(function(child)
                 isDisconnected = true
                 writeStatus()
                 warn("[LUA] ErrorPrompt: Phát hiện lỗi: " .. errorText)
-            elseif string.find(errorText, "Teleporting") then
-                isTeleporting = true
-                warn("[LUA] Phát hiện Teleporting...")
-                -- Đặt timeout để xử lý trường hợp Teleport bị kẹt
-                teleportTimeout = task.delay(10, function()
-                    if isTeleporting then
-                        isTeleporting = false -- Hủy bỏ trạng thái Teleport
-                        isDisconnected = true -- Coi như disconnect nếu Teleport quá lâu
-                        writeStatus()
-                        warn("[LUA] Teleport Timeout: Coi như disconnect.")
-                    end
-                    teleportTimeout = nil
-                end)
             end
         end
     end
@@ -103,22 +88,6 @@ if mt then
         return oldNamecall(self, unpack(args))
     end)
 end
-
--- 6. Xử lý khi Teleport xong (PlayerGui xuất hiện trở lại)
-Players.LocalPlayer.Changed:Connect(function(property)
-    if property == "PlayerGui" then
-        if isTeleporting then
-            if teleportTimeout then
-                task.cancel(teleportTimeout) -- Hủy timeout nếu Teleport thành công
-                teleportTimeout = nil
-            end
-            isTeleporting = false
-            isDisconnected = false
-            writeStatus()
-            warn("[LUA] Teleport hoàn thành. Đặt lại trạng thái.")
-        end
-    end
-end)
 
 -- Ghi trạng thái ban đầu
 writeStatus()
