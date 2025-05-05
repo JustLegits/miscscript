@@ -5,7 +5,7 @@ local player = Players.LocalPlayer
 local fileName = "status.json"
 
 local isDisconnected = false
-local checkInterval = 120 -- Đặt thành 120 để cập nhật mỗi 2 phút
+local checkInterval = 60  -- Đặt thời gian kiểm tra thành 60 giây (1 phút)
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
@@ -54,31 +54,25 @@ local function checkPlayerParent()
     end
 end
 
--- 4. Phát hiện ErrorPrompt (mở rộng)
+-- 4. Phát hiện ErrorPrompt
 CoreGui.ChildAdded:Connect(function(child)
     if child:FindFirstChild("ErrorPrompt") then
         local errorPrompt = child:FindFirstChild("ErrorPrompt")
         local textLabel = errorPrompt:FindFirstChild("TextLabel")
         if textLabel then
             local errorText = textLabel.Text
-            if string.find(errorText, "Error Code: ") then
+            if string.find(errorText, "Error Code: ") or
+               string.find(errorText, "You were kicked") or
+               string.find(errorText, "connection lost") then
                 isDisconnected = true
                 writeStatus()
-                warn("[LUA] ErrorPrompt: Phát hiện mã lỗi: " .. errorText)
-            elseif string.find(errorText, "You were kicked") then
-                isDisconnected = true
-                writeStatus()
-                warn("[LUA] ErrorPrompt: Phát hiện thông báo bị kick: " .. errorText)
-            elseif string.find(errorText, "connection lost") then
-                isDisconnected = true
-                writeStatus()
-                warn("[LUA] ErrorPrompt: Phát hiện mất kết nối: " .. errorText)
+                warn("[LUA] ErrorPrompt: Phát hiện lỗi: " .. errorText)
             end
         end
     end
 end)
 
--- 5. Phát hiện bị kick (hook Kick function) - cải tiến
+-- 5. Phát hiện bị kick (hook Kick function)
 local mt = getrawmetatable(game)
 if mt then
     setreadonly(mt, false)
@@ -100,8 +94,8 @@ writeStatus()
 
 -- Lặp lại để kiểm tra và cập nhật trạng thái định kỳ
 while true do
-    task.wait(checkInterval) -- Đã sửa thành biến checkInterval
+    task.wait(checkInterval)
     checkPlayerGui()
     checkPlayerParent()
-    writeStatus() -- Gọi writeStatus() để cập nhật file
+    writeStatus()
 end
