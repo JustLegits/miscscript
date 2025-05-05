@@ -29,6 +29,7 @@ end
 Players.PlayerRemoving:Connect(function(removingPlayer)
     if removingPlayer == player then
         isDisconnected = true
+        teleportFailed = false -- Reset teleportFailed
         writeStatus()
         warn("[LUA] PlayerRemoving: Player removed.")
     end
@@ -39,6 +40,7 @@ local function checkPlayerGui()
     if not player:FindFirstChild("PlayerGui") then
         if not isDisconnected then
             isDisconnected = true
+            teleportFailed = false -- Reset teleportFailed
             writeStatus()
             warn("[LUA] PlayerGui không tồn tại: Có thể đã disconnect.")
         end
@@ -50,6 +52,7 @@ local function checkPlayerParent()
     if player.Parent ~= Players then
         if not isDisconnected then
             isDisconnected = true
+            teleportFailed = false -- Reset teleportFailed
             writeStatus()
             warn("[LUA] Player.Parent không phải là Players: Có thể đã disconnect.")
         end
@@ -65,22 +68,27 @@ CoreGui.ChildAdded:Connect(function(child)
             local errorText = textLabel.Text
             if string.find(errorText, "Error Code: ") then
                 isDisconnected = true
+                teleportFailed = false -- Reset teleportFailed
                 writeStatus()
                 warn("[LUA] ErrorPrompt: Phát hiện mã lỗi: " .. errorText)
             elseif string.find(errorText, "You were kicked") then
                 isDisconnected = true
+                teleportFailed = false -- Reset teleportFailed
                 writeStatus()
                 warn("[LUA] ErrorPrompt: Phát hiện thông báo bị kick: " .. errorText)
             elseif string.find(errorText, "connection lost") then
                 isDisconnected = true
+                teleportFailed = false -- Reset teleportFailed
                 writeStatus()
                 warn("[LUA] ErrorPrompt: Phát hiện mất kết nối: " .. errorText)
             elseif string.find(errorText, "Teleport Failed") then
-                teleportFailed = true -- Đặt teleportFailed thành true
+                teleportFailed = true
+                isDisconnected = false  -- Đặt isDisconnected thành false
                 writeStatus()
                 warn("[LUA] ErrorPrompt: Phát hiện Teleport Failed.")
             else
                 teleportFailed = false
+                isDisconnected = false
                 writeStatus()
             end
         end
@@ -97,6 +105,7 @@ if mt then
         local method = getnamecallmethod()
         if method == "Kick" and self == player then
             isDisconnected = true
+            teleportFailed = false  -- Reset teleportFailed
             writeStatus()
             warn("[LUA] __namecall: Phát hiện bị kick.")
         end
