@@ -6,6 +6,7 @@ local fileName = "status.json"
 
 local isDisconnected = false
 local checkInterval = 60  -- Đặt thời gian kiểm tra thành 60 giây (1 phút)
+local isChecking = false -- Biến để đảm bảo chỉ có một lần kiểm tra đang diễn ra
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
@@ -32,8 +33,12 @@ Players.PlayerRemoving:Connect(function(removingPlayer)
     end
 end)
 
--- 2. Kiểm tra sự tồn tại của PlayerGui
-local function checkPlayerGui()
+-- 2. Hàm kiểm tra và cập nhật trạng thái (chỉ gọi 1 lần mỗi phút)
+local function checkStatus()
+    if isChecking then return end  -- Nếu đang kiểm tra, không làm gì cả
+    isChecking = true
+
+    -- 2. Kiểm tra sự tồn tại của PlayerGui
     if not player:FindFirstChild("PlayerGui") then
         if not isDisconnected then
             isDisconnected = true
@@ -41,10 +46,8 @@ local function checkPlayerGui()
             warn("[LUA] PlayerGui không tồn tại: Có thể đã disconnect.")
         end
     end
-end
 
--- 3. Kiểm tra Parent của Player
-local function checkPlayerParent()
+    -- 3. Kiểm tra Parent của Player
     if player.Parent ~= Players then
         if not isDisconnected then
             isDisconnected = true
@@ -52,6 +55,8 @@ local function checkPlayerParent()
             warn("[LUA] Player.Parent không phải là Players: Có thể đã disconnect.")
         end
     end
+
+    isChecking = false -- Đã kiểm tra xong, cho phép kiểm tra lại
 end
 
 -- 4. Phát hiện ErrorPrompt
@@ -95,7 +100,5 @@ writeStatus()
 -- Lặp lại để kiểm tra và cập nhật trạng thái định kỳ
 while true do
     task.wait(checkInterval)
-    checkPlayerGui()
-    checkPlayerParent()
-    writeStatus()
+    checkStatus() -- Gọi hàm kiểm tra mỗi phút
 end
