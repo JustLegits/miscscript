@@ -9,12 +9,13 @@ local checkInterval = 60  -- Đặt thời gian kiểm tra và ghi là 60 giây 
 local isChecking = false
 local hasTeleported = false
 local teleportStartTime = 0
-local canWrite = true -- Biến để kiểm soát việc ghi
+local canWrite = true
+local heartbeatConnection = nil -- Biến để lưu trữ kết nối Heartbeat
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
-    if not canWrite then return end -- Chỉ ghi nếu canWrite là true
-    canWrite = false -- Chặn ghi trong khi đang thực hiện
+    if not canWrite then return end
+    canWrite = false
 
     local data = {
         time = os.time(),
@@ -129,11 +130,16 @@ Players.LocalPlayer.Changed:Connect(function(property)
     end
 end)
 
+-- Hàm để chạy các kiểm tra định kỳ
+local function runChecks()
+    checkStatus()
+    writeStatus()
+end
+
 -- Ghi trạng thái ban đầu
 writeStatus()
 
--- Lặp lại để kiểm tra và cập nhật trạng thái định kỳ
-while true do
-    task.wait(checkInterval)
-    checkStatus()
-end
+-- Lặp lại để kiểm tra và cập nhật trạng thái định kỳ bằng Heartbeat
+heartbeatConnection = game:GetService("RunService").Heartbeat:Connect(function()
+    runChecks()
+end)
