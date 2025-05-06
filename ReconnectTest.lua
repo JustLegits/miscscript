@@ -5,12 +5,17 @@ local player = Players.LocalPlayer
 local fileName = "status.json"
 
 local isDisconnected = false
-local checkInterval = 60  -- Đặt thời gian kiểm tra thành 60 giây (1 phút)
+local checkInterval = 60  -- Đặt thời gian kiểm tra và ghi là 60 giây (1 phút)
 local isChecking = false
 local hasTeleported = false
+local teleportStartTime = 0
+local canWrite = true -- Biến để kiểm soát việc ghi
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
+    if not canWrite then return end -- Chỉ ghi nếu canWrite là true
+    canWrite = false -- Chặn ghi trong khi đang thực hiện
+
     local data = {
         time = os.time(),
         isDisconnected = isDisconnected,
@@ -23,6 +28,11 @@ local function writeStatus()
     if not success then
         print("[LUA] Lỗi khi ghi " .. fileName .. ":", err)
     end
+
+    -- Đặt lại canWrite sau khi ghi xong
+    task.delay(checkInterval, function()
+        canWrite = true
+    end)
 end
 
 -- 1. Xử lý sự kiện PlayerRemoving
@@ -39,22 +49,31 @@ local function checkStatus()
     if isChecking then return end
     isChecking = true
 
+    local currentTime = os.time()
+
+    -- Kiểm tra nếu đang trong quá trình teleport
+    if hasTeleported and (currentTime - teleportStartTime) < 10 then
+        print("[LUA] Đang trong quá trình Teleport, bỏ qua kiểm tra...")
+        isChecking = false
+        return
+    end
+
     -- 2. Kiểm tra sự tồn tại của PlayerGui
-    if not player:FindFirstChild("PlayerGui") and not hasTeleported then -- Thêm điều kiện kiểm tra hasTeleported
+    if not player:FindFirstChild("PlayerGui") then
         isDisconnected = true
         writeStatus()
         warn("[LUA] PlayerGui không tồn tại: Có thể đã disconnect.")
     end
 
     -- 3. Kiểm tra Parent của Player
-    if player.Parent ~= Players and not hasTeleported then  -- Thêm điều kiện kiểm tra hasTeleported
+    if player.Parent ~= Players then
         isDisconnected = true
         writeStatus()
         warn("[LUA] Player.Parent không phải là Players: Có thể đã disconnect.")
     end
 
     isChecking = false
-    hasTeleported = false -- Reset hasTeleported sau khi kiểm tra
+    hasTeleported = false
 end
 
 -- 4. Phát hiện ErrorPrompt
@@ -71,9 +90,8 @@ CoreGui.ChildAdded:Connect(function(child)
                 writeStatus()
                 warn("[LUA] ErrorPrompt: Phát hiện lỗi: " .. errorText)
             elseif string.find(errorText, "Teleporting") then
-                hasTeleported = true -- Đặt hasTeleported khi phát hiện Teleporting
-                isDisconnected = true
-                writeStatus()
+                hasTeleported = true
+                teleportStartTime = os.time()
                 warn("[LUA] Phát hiện Teleporting...")
             end
         end
@@ -99,12 +117,14 @@ end
 
 -- 6. Xử lý khi Teleport xong
 Players.LocalPlayer.Changed:Connect(function(property)
-    if property == "PlayerGui" then
-        if hasTeleported then
-            hasTeleported = false
-            isDisconnected = false
-            writeStatus()
-            warn("[LUA] Teleport hoàn thành. Đặt lại trạng thái.")
+    if property == "Parent" then
+        if player.Parent == Players then
+            if hasTeleported then
+                hasTeleported = false
+                isDisconnected = false
+                writeStatus()
+                warn("[LUA] Teleport hoàn thành. Đặt lại trạng thái.")
+            end
         end
     end
 end)
