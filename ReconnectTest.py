@@ -174,6 +174,7 @@ def main():
     running = False
     config = load_config()
     config_set = bool(config and config.get("place_id") and config.get("vip_link"))
+    disconnect_count = 0  # Thêm biến đếm số lần disconnect
 
     if not config_set:
         print("[PYTHON] Chào mừng bạn mới! Vui lòng thiết lập cấu hình.")
@@ -192,19 +193,28 @@ def main():
         elif choice == "2" and config_set:
             print("[PYTHON] Bắt đầu chạy...")
             running = True
+            disconnect_count = 0 # Reset count khi bắt đầu chạy
             while running:
                 status_time, is_disconnected = get_status_time()
                 if status_time is not None:
                     current_time = time.time()
                     time_difference = current_time - status_time
-                    print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây, Disconnected: {is_disconnected}")
+                    print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây, Disconnected: {is_disconnected}, Lần Disconnect: {disconnect_count}")
                     if is_disconnected:
-                        print("[PYTHON] Disconnected: Tiến hành Rejoin.")
-                        rejoin_roblox(config.get("place_id"), config.get("vip_link"))
+                        disconnect_count += 1
+                        print(f"[PYTHON] Phát hiện Disconnect lần {disconnect_count}.")
+                        if disconnect_count >= 2:  # Chỉ rejoin khi phát hiện disconnect 2 lần
+                            print("[PYTHON] Đã phát hiện Disconnect 2 lần: Tiến hành Rejoin.")
+                            rejoin_roblox(config.get("place_id"), config.get("vip_link"))
+                            disconnect_count = 0 # Reset count sau khi rejoin
+                        else:
+                            print("[PYTHON] Đợi xác nhận Disconnect lần 2 trước khi Rejoin.")
                     elif time_difference > config.get("rejoin_threshold", rejoin_threshold):
                         print("[PYTHON] Quá thời gian chờ: Tiến hành Rejoin.")
                         rejoin_roblox(config.get("place_id"), config.get("vip_link"))
+                        disconnect_count = 0 # Reset count sau khi rejoin
                     else:
+                        disconnect_count = 0 # Reset count nếu không disconnect và chưa quá thời gian chờ
                         print("[PYTHON] Chưa cần Rejoin.")
                 else:
                     print("[PYTHON] Không thể đọc được thời gian từ file trạng thái.")
