@@ -218,7 +218,7 @@ def main():
                         print("[PYTHON] Chưa cần Rejoin.")
                 else:
                     print("[PYTHON] Không thể đọc được thời gian từ file trạng thái.")
-                time.sleep(60)
+                time.sleep(90)
             print("[PYTHON] Đã dừng.")
         elif choice == "3":
             print("[PYTHON] Dừng chương trình...")
