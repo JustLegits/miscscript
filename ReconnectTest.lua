@@ -3,9 +3,8 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local fileName = "status.json" -- Sử dụng "status.json"
+local fileName = "status.json"
 local isDisconnected = false
-local isKicked = false
 local isWriting = false
 local writeRetryDelay = 60
 local MAX_WRITE_RETRIES = 3
@@ -24,21 +23,21 @@ local function writeStatus()
     local data = {
         time = os.time(),
         isDisconnected = isDisconnected,
-        isKicked = isKicked,
     }
     local encoded = HttpService:JSONEncode(data)
-    local filePath = fileName -- Sử dụng trực tiếp fileName
+    local filePath = fileName
 
     local function tryWrite()
         local success, err = pcall(function()
             writefile(filePath, encoded)
+            warn(":pushpin: Status saved to " .. filePath)
             print("[LUA] Đã ghi " .. filePath .. ": " .. encoded)
         end)
 
         if success then
             isWriting = false
         else
-            retries = retries + 1
+            retries = retries + 1;
             if retries <= MAX_WRITE_RETRIES then
                 print("[LUA] Lỗi khi ghi " .. filePath .. ": " .. err .. ". Thử lại sau " .. writeRetryDelay .. " giây.")
                 task.delay(writeRetryDelay, tryWrite)
@@ -55,6 +54,8 @@ end
 -- 1. Xử lý sự kiện PlayerRemoving
 Players.PlayerRemoving:Connect(function(removingPlayer)
     if removingPlayer == player then
+        isDisconnected = true
+        writeStatus()
         warn("[LUA] PlayerRemoving: Player removed.")
     end
 end)
@@ -68,22 +69,12 @@ if mt then
         local args = {...}
         local method = getnamecallmethod()
         if method == "Kick" and self == player then
-            isKicked = true
             isDisconnected = true
             writeStatus()
             warn("[LUA] __namecall: Phát hiện bị kick.")
         end
         return oldNamecall(self, unpack(args))
     end)
-end
-
--- 3. Phát hiện khi người chơi rời khỏi hoàn toàn
-game. খেলা_শেষ = function()
-    if not isKicked then
-        isDisconnected = true
-        writeStatus()
-        warn("[LUA] Phát hiện người chơi rời trò chơi (không phải do kick).")
-    end
 end
 
 -- Ghi trạng thái ban đầu
