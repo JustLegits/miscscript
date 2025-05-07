@@ -7,7 +7,7 @@ import urllib.parse
 from PIL import Image
 from io import BytesIO
 
-# Định nghĩa tên file trạng thái và đường dẫn (không còn được sử dụng nhưng giữ lại để tránh lỗi đường dẫn)
+# Định nghĩa tên file trạng thái và đường dẫn (không còn được sử dụng)
 status_file_name = "status.json"
 status_file_path = "/sdcard/Android/data/com.roblox.client/files/gloop/external/Workspace/" + status_file_name
 package_name = "com.roblox.client"
