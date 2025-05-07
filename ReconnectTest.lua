@@ -5,21 +5,9 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local fileName = "status.json"
 local isDisconnected = false
-local isWriting = false
-local writeRetryDelay = 60
-local MAX_WRITE_RETRIES = 3
-
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
-    if isWriting then
-        print("[LUA] Đang ghi file, bỏ qua...")
-        return
-    end
-
-    isWriting = true;
-    local retries = 0
-
     local data = {
         time = os.time(),
         isDisconnected = isDisconnected,
@@ -27,28 +15,9 @@ local function writeStatus()
     local encoded = HttpService:JSONEncode(data)
     local filePath = fileName
 
-    local function tryWrite()
-        local success, err = pcall(function()
-            writefile(filePath, encoded)
-            warn(":pushpin: Status saved to " .. filePath)
-            print("[LUA] Đã ghi " .. filePath .. ": " .. encoded)
-        end)
-
-        if success then
-            isWriting = false
-        else
-            retries = retries + 1;
-            if retries <= MAX_WRITE_RETRIES then
-                print("[LUA] Lỗi khi ghi " .. filePath .. ": " .. err .. ". Thử lại sau " .. writeRetryDelay .. " giây.")
-                task.delay(writeRetryDelay, tryWrite)
-            else
-                print("[LUA] Đã thử lại nhiều lần nhưng vẫn không thành công. Bỏ qua.")
-                isWriting = false
-            end
-        end
-    end
-
-    tryWrite()
+    writefile(filePath, encoded)
+    warn(":pushpin: Status saved to " .. filePath)
+    print("[LUA] Đã ghi " .. filePath .. ": " .. encoded)
 end
 
 -- 1. Xử lý sự kiện PlayerRemoving
