@@ -24,16 +24,6 @@ local function writeStatus()
     lastWriteTime = os.time()
 end
 
--- 1. Xử lý sự kiện PlayerRemoving
-Players.PlayerRemoving:Connect(function(removingPlayer)
-    if removingPlayer == player and not disconnectRecorded then
-        isDisconnected = true
-        writeStatus()
-        warn("[LUA] PlayerRemoving: Player removed.")
-        disconnectRecorded = true -- Đặt cờ thành true sau khi ghi
-    end
-end)
-
 -- 2. Phát hiện bị kick (hook Kick function)
 local mt = getrawmetatable(game)
 if mt then
