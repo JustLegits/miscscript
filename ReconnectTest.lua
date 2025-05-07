@@ -7,6 +7,7 @@ local fileName = "status.json"
 local isDisconnected = false
 local lastWriteTime = 0
 local disconnectRecorded = false -- Cờ này theo dõi việc ngắt kết nối đã được ghi chưa
+local checkInterval = 60       -- Khoảng thời gian kiểm tra (60 giây)
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
@@ -56,7 +57,8 @@ writeStatus()
 
 -- Lặp lại để ghi trạng thái định kỳ
 RunService.Heartbeat:Connect(function()
-    if os.time() - lastWriteTime >= 60 then
+    -- Kiểm tra nếu đã 60 giây kể từ lần ghi cuối
+    if os.time() - lastWriteTime >= checkInterval then
         writeStatus()
     end
 end)
