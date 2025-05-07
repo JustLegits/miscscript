@@ -9,7 +9,7 @@ from io import BytesIO
 
 # Định nghĩa tên file trạng thái và đường dẫn (không còn được sử dụng)
 status_file_name = "status.json"
-status_file_path = "/sdcard/Android/data/com.roblox.client/files/gloop/external/Workspace/" + status_file_name
+status_file_path = "/sdcard/Android/data/com.roblox.client/files/gloop/external/Workspace/" + status_file_path
 package_name = "com.roblox.client"
 activity_name = "com.roblox.client.MainActivity"
 config_file = "config.json"
@@ -26,9 +26,9 @@ def get_region_screenshot():
     """Chụp ảnh vùng màn hình chứa logo Roblox."""
     try:
         result = subprocess.run(
-            ["su", "-c", "screencap -p"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True
+            ["su", "-c", "screencap -p"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
         )
-        screen_bytes = result.stdout.encode('utf-8').replace(b'\r\n', b'\n')
+        screen_bytes = result.stdout
         img = Image.open(BytesIO(screen_bytes)).convert("RGB")
         logo_image = img.crop(LOGO_REGION)
         return logo_image
