@@ -3,31 +3,53 @@ import os
 import subprocess
 import json
 import sys
+import urllib.parse
+from PIL import Image
+from io import BytesIO
 
-# Định nghĩa tên file trạng thái và đường dẫn
+# Định nghĩa tên file trạng thái và đường dẫn (không còn được sử dụng nhưng giữ lại để tránh lỗi đường dẫn)
 status_file_name = "status.json"
 status_file_path = "/sdcard/Android/data/com.roblox.client/files/gloop/external/Workspace/" + status_file_name
-rejoin_threshold = 300
 package_name = "com.roblox.client"
 activity_name = "com.roblox.client.MainActivity"
 config_file = "config.json"
 global running
 
-def get_status_time():
-    """Đọc thời gian và trạng thái ngắt kết nối từ file status.json."""
+# Cấu hình theo dõi logo
+LOGO_REGION = (32, 26, 70, 63)  # Vùng tọa độ logo Roblox đã cập nhật
+NORMAL_LOGO_THRESHOLD = 0.95
+CHECK_INTERVAL = 80  # Kiểm tra sau mỗi 80 giây
+TEMP_IMAGE_PATH = "/sdcard/Download/temp_logo.png"
+NORMAL_LOGO_IMAGE_PATH = "/sdcard/Download/normal_logo.png"
+
+def get_region_screenshot():
+    """Chụp ảnh vùng màn hình chứa logo Roblox."""
     try:
-        with open(status_file_path, "r") as f:
-            data = json.load(f)
-        return data.get("time"), data.get("isDisconnected", False)
-    except FileNotFoundError:
-        print(f"[PYTHON] File trạng thái không tồn tại: {status_file_path}")
-        return None, False
-    except json.JSONDecodeError as e:
-        print(f"[PYTHON] Lỗi giải mã JSON trong file trạng thái: {e}")
-        return None, False
+        result = subprocess.run(
+            ["su", "-c", "screencap -p"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True
+        )
+        screen_bytes = result.stdout.encode('utf-8').replace(b'\r\n', b'\n')
+        img = Image.open(BytesIO(screen_bytes)).convert("RGB")
+        logo_image = img.crop(LOGO_REGION)
+        return logo_image
+    except subprocess.CalledProcessError as e:
+        print(f"[PYTHON] Lỗi khi chụp màn hình: {e}")
+        return None
     except Exception as e:
-        print(f"[PYTHON] Lỗi khi đọc file trạng thái: {e}")
-        return None, False
+        print(f"[PYTHON] Lỗi không mong muốn khi chụp ảnh logo: {e}")
+        return None
+
+def compare_images(img1, img2):
+    """So sánh hai ảnh và trả về độ tương đồng (0 đến 1)."""
+    if img1 is None or img2 is None or img1.size != img2.size:
+        return 0
+    total_pixels = img1.width * img1.height
+    diff_pixels = 0
+    for x in range(img1.width):
+        for y in range(img1.height):
+            if img1.getpixel((x, y)) != img2.getpixel((x, y)):
+                diff_pixels += 1
+    return 1 - (diff_pixels / total_pixels)
 
 def force_stop_roblox_root():
     """Buộc dừng ứng dụng Roblox bằng quyền root."""
@@ -100,46 +122,59 @@ def get_config_input():
     config = {}
     config["place_id"] = input("Nhập Place ID: ")
     config["vip_link"] = input("Nhập Server VIP Link: ")
-    while True:
-        try:
-            rejoin_threshold_input = input("Nhập thời gian chờ (giây): ")
-            if not rejoin_threshold_input:
-                print("[PYTHON] Không nhập thời gian chờ, sử dụng mặc định 300s.")
-                config["rejoin_threshold"] = 300
-                break
-            config["rejoin_threshold"] = int(rejoin_threshold_input)
-            if config["rejoin_threshold"] <= 0:
-                print("[PYTHON] Thời gian chờ phải lớn hơn 0.")
-            else:
-                break
-        except ValueError:
-            print("[PYTHON] Giá trị thời gian chờ không hợp lệ, vui lòng nhập lại.")
     return config
 
 def display_menu(config, config_set):
     """Hiển thị menu và xử lý lựa chọn của người dùng."""
-    print("\n--- Auto Rejoin Roblox (Root) ---")
+    print("\n--- Auto Rejoin Roblox (Root - Logo Check Only) ---")
     if not config_set:
         print("Vui lòng thiết lập cấu hình trước khi tiếp tục.")
     else:
-        print(f"1.  Đặt lại cấu hình (Place ID, Server VIP Link, Thời gian chờ)")
+        print(f"1.  Đặt lại cấu hình (Place ID, Server VIP Link)")
         print(f"2.  Bắt đầu chạy")
         print("3.  Dừng (Ctrl+C)")
         print("4.  Thoát")
         print("Nhập lựa chọn của bạn:")
 
 def main():
-    """Hàm chính để chạy script."""
+    """Hàm chính để chạy script - Chỉ kiểm tra logo."""
     global running
     running = False
     config = load_config()
     config_set = bool(config and config.get("place_id") and config.get("vip_link"))
+    normal_logo_image = None
 
     if not config_set:
         print("[PYTHON] Chào mừng bạn mới! Vui lòng thiết lập cấu hình.")
         config = get_config_input()
         save_config(config)
         config_set = True
+
+    # Chụp ảnh tham chiếu của logo (bạn cần chạy script này lần đầu khi logo bình thường)
+    if not os.path.exists(NORMAL_LOGO_IMAGE_PATH):
+        print("[PYTHON] Tiến hành chụp ảnh tham chiếu logo lần đầu...")
+        first_logo = get_region_screenshot()
+        if first_logo:
+            try:
+                first_logo.save(NORMAL_LOGO_IMAGE_PATH)
+                print(f"[PYTHON] Đã chụp và lưu ảnh tham chiếu của logo tại {NORMAL_LOGO_IMAGE_PATH}")
+                normal_logo_image = first_logo
+            except Exception as e:
+                print(f"[PYTHON] Lỗi khi lưu ảnh tham chiếu: {e}")
+                return
+        else:
+            print("[PYTHON] Không thể chụp ảnh logo tham chiếu ban đầu.")
+            return
+    else:
+        try:
+            normal_logo_image = Image.open(NORMAL_LOGO_IMAGE_PATH).convert("RGB")
+            print("[PYTHON] Đã tải ảnh tham chiếu logo.")
+        except FileNotFoundError:
+            print(f"[PYTHON] Không tìm thấy ảnh tham chiếu của logo tại {NORMAL_LOGO_IMAGE_PATH}.")
+            return
+        except Exception as e:
+            print(f"[PYTHON] Lỗi khi mở ảnh tham chiếu logo: {e}")
+            return
 
     while True:
         display_menu(config, config_set)
@@ -150,21 +185,21 @@ def main():
             config = get_config_input()
             save_config(config)
         elif choice == "2" and config_set:
-            print("[PYTHON] Bắt đầu chạy...")
+            print("[PYTHON] Bắt đầu chạy (chỉ kiểm tra logo)...")
             running = True
             while running:
-                status_time, is_disconnected = get_status_time()
-                if status_time is not None:
-                    current_time = time.time()
-                    time_difference = current_time - status_time
-                    print(f"[PYTHON] Thời gian trôi qua: {time_difference:.2f} giây, Disconnected: {is_disconnected}")
-                    if is_disconnected or time_difference > config.get("rejoin_threshold", rejoin_threshold):
-                        print("[PYTHON] Phát hiện Disconnect hoặc quá thời gian chờ. Tiến hành Rejoin...")
+                current_logo = get_region_screenshot()
+
+                if current_logo and normal_logo_image:
+                    similarity = compare_images(normal_logo_image, current_logo)
+                    print(f"[PYTHON] Độ tương đồng logo: {similarity:.2f}")
+                    if similarity < NORMAL_LOGO_THRESHOLD:
+                        print("[PYTHON] Biểu tượng logo có vẻ đã thay đổi. Tiến hành Rejoin...")
                         force_stop_roblox_root()
                         start_roblox_root(config.get("place_id"), config.get("vip_link"))
                 else:
-                    print("[PYTHON] Không thể đọc được thời gian từ file trạng thái.")
-                time.sleep(80)
+                    print("[PYTHON] Không thể chụp ảnh logo hoặc ảnh tham chiếu không tồn tại.")
+                time.sleep(CHECK_INTERVAL)
             print("[PYTHON] Đã dừng.")
         elif choice == "3":
             print("[PYTHON] Dừng chương trình...")
