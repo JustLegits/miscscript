@@ -10,38 +10,49 @@ local checkInterval = 60  -- Đặt thời gian kiểm tra là 60 giây
 local isChecking = false
 local hasTeleported = false
 local teleportStartTime = 0
-local canWrite = true
-local lastActivityTime = 0 -- Thời gian hoạt động cuối cùng
-local MAX_TELEPORT_TIME = 10 -- Thời gian tối đa cho phép teleport (giây)
+local isWriting = false  -- Sử dụng biến này để kiểm soát việc ghi
+local lastActivityTime = 0
+local MAX_TELEPORT_TIME = 10
+local MAX_WRITE_RETRIES = 3 -- Số lần thử lại tối đa
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
-    if not canWrite then
-        print("[LUA] Đang chờ để ghi trạng thái...")
+    if isWriting then
+        print("[LUA] Đang ghi file, bỏ qua...")
         return
     end
-    canWrite = false
+
+    isWriting = true
+    local retries = 0
 
     local data = {
         time = lastActivityTime,
         isDisconnected = isDisconnected,
     }
     local encoded = HttpService:JSONEncode(data)
-    local filePath = game.Workspace.Name .. "_" .. fileName -- Tạo tên file duy nhất
+    local filePath = game.Workspace.Name .. "_" .. fileName
 
-    local success, err = pcall(function()
-        writefile(filePath, encoded)
-        print("[LUA] Đã ghi " .. filePath .. ": " .. encoded)
-    end)
-    if not success then
-        print("[LUA] Lỗi khi ghi " .. filePath .. ":", err)
+    local function tryWrite()
+        local success, err = pcall(function()
+            writefile(filePath, encoded)
+            print("[LUA] Đã ghi " .. filePath .. ": " .. encoded)
+        end)
+
+        if success then
+            isWriting = false
+        else
+            retries = retries + 1
+            if retries <= MAX_WRITE_RETRIES then
+                print("[LUA] Lỗi khi ghi " .. filePath .. ": " .. err .. ". Thử lại sau " .. checkInterval .. " giây.")
+                task.delay(checkInterval, tryWrite) -- Sử dụng task.delay
+            else
+                print("[LUA] Đã thử lại nhiều lần nhưng vẫn không thành công. Bỏ qua.")
+                isWriting = false
+            end
+        end
     end
 
-    -- Sử dụng task.delay thay vì delay
-    task.delay(checkInterval, function()
-        canWrite = true
-        print("[LUA] Có thể ghi lại trạng thái.")
-    end)
+    tryWrite() -- Bắt đầu quá trình ghi
 end
 
 -- 1. Xử lý sự kiện PlayerRemoving
@@ -56,42 +67,35 @@ end)
 -- 2. Hàm kiểm tra và cập nhật trạng thái
 local function checkStatus()
     if isChecking then
-        --print("[LUA] Đang kiểm tra trạng thái, bỏ qua...")
         return
     end
     isChecking = true
-
     local currentTime = os.time()
 
-    -- Kiểm tra nếu đang trong quá trình teleport
     if hasTeleported and (currentTime - teleportStartTime) < MAX_TELEPORT_TIME then
         print("[LUA] Đang trong quá trình Teleport, bỏ qua kiểm tra...")
         isChecking = false
         return
     end
 
-    -- 2. Kiểm tra sự tồn tại của PlayerGui
     if not player:FindFirstChild("PlayerGui") then
         isDisconnected = true
         writeStatus()
         warn("[LUA] PlayerGui không tồn tại: Có thể đã disconnect.")
-        isChecking = false;
+        isChecking = false
         return
     end
 
-    -- 3. Kiểm tra Parent của Player
     if player.Parent ~= Players then
         isDisconnected = true
         writeStatus()
         warn("[LUA] Player.Parent không phải là Players: Có thể đã disconnect.")
-        isChecking = false;
+        isChecking = false
         return
     end
 
-    -- Nếu vẫn còn kết nối, cập nhật thời gian hoạt động
     lastActivityTime = currentTime
-    writeStatus() -- Ghi lại thời gian hoạt động
-
+    writeStatus()
     isChecking = false
     hasTeleported = false
 end
