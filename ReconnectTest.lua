@@ -5,12 +5,12 @@ local player = Players.LocalPlayer
 local fileName = "status.json"
 
 local isDisconnected = false
-local checkInterval = 60  -- Đặt thời gian kiểm tra và ghi là 60 giây (1 phút)
+local checkInterval = 60  -- Đặt thời gian kiểm tra là 60 giây
 local isChecking = false
 local hasTeleported = false
 local teleportStartTime = 0
 local canWrite = true
-local heartbeatConnection = nil -- Biến để lưu trữ kết nối Heartbeat
+local lastActivityTime = 0 -- Thời gian hoạt động cuối cùng
 
 -- Hàm ghi file trạng thái
 local function writeStatus()
@@ -18,7 +18,7 @@ local function writeStatus()
     canWrite = false
 
     local data = {
-        time = os.time(),
+        time = lastActivityTime, -- Sử dụng lastActivityTime
         isDisconnected = isDisconnected,
     }
     local encoded = HttpService:JSONEncode(data)
@@ -30,7 +30,7 @@ local function writeStatus()
         print("[LUA] Lỗi khi ghi " .. fileName .. ":", err)
     end
 
-    -- Đặt lại canWrite sau khi ghi xong
+    canWrite = false
     task.delay(checkInterval, function()
         canWrite = true
     end)
@@ -64,6 +64,8 @@ local function checkStatus()
         isDisconnected = true
         writeStatus()
         warn("[LUA] PlayerGui không tồn tại: Có thể đã disconnect.")
+        isChecking = false;
+        return
     end
 
     -- 3. Kiểm tra Parent của Player
@@ -71,7 +73,13 @@ local function checkStatus()
         isDisconnected = true
         writeStatus()
         warn("[LUA] Player.Parent không phải là Players: Có thể đã disconnect.")
+        isChecking = false;
+        return
     end
+
+    -- Nếu vẫn còn kết nối, cập nhật thời gian hoạt động
+    lastActivityTime = currentTime
+    writeStatus() -- Ghi lại thời gian hoạt động
 
     isChecking = false
     hasTeleported = false
@@ -130,16 +138,11 @@ Players.LocalPlayer.Changed:Connect(function(property)
     end
 end)
 
--- Hàm để chạy các kiểm tra định kỳ
-local function runChecks()
-    checkStatus()
-    writeStatus()
-end
-
 -- Ghi trạng thái ban đầu
 writeStatus()
+lastActivityTime = os.time()
 
--- Lặp lại để kiểm tra và cập nhật trạng thái định kỳ bằng Heartbeat
-heartbeatConnection = game:GetService("RunService").Heartbeat:Connect(function()
-    runChecks()
+-- Lặp lại để kiểm tra và cập nhật trạng thái định kỳ
+game:GetService("RunService").Heartbeat:Connect(function()
+    checkStatus()
 end)
