@@ -1,0 +1,3 @@
+. <(curl https://raw.githubusercontent.com/u400822/setup-termux/refs/heads/main/rokid.sh)
+
+su -c "cd /sdcard/Download && export PATH=$PATH:/data/data/com.termux/files/usr/bin && export TERM=xterm-256color && python ./dumbass.py"
