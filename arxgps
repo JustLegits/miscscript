@@ -1,42 +1,18 @@
--- === Enable All Gamepasses (Client / Executor) ===
+-- === Enable All Gamepasses Once (Client / Executor) ===
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players           = game:GetService("Players")
 local localPlayer       = Players.LocalPlayer
 
--- 1) Lấy folder Gamepass của LocalPlayer
-local function getGamepassFolder()
-    return ReplicatedStorage
-        :WaitForChild("Player_Data")
-        :WaitForChild(localPlayer.Name)
-        :WaitForChild("Gamepass")
-end
+-- Lấy folder Gamepass của LocalPlayer
+local gamepassFolder = ReplicatedStorage
+    :WaitForChild("Player_Data")
+    :WaitForChild(localPlayer.Name)
+    :WaitForChild("Gamepass")
 
-local gamepassFolder = getGamepassFolder()
-
--- 2) Hàm bật tất cả BoolValue trong folder
-local function enableAllPasses()
-    for _, v in ipairs(gamepassFolder:GetChildren()) do
-        if v:IsA("BoolValue") then
-            v.Value = true
-        end
+-- Duyệt một lần và bật hết
+for _, v in ipairs(gamepassFolder:GetChildren()) do
+    if v:IsA("BoolValue") then
+        v.Value = true
     end
 end
-
--- 3) Chạy lần đầu
-enableAllPasses()
-
--- 4) Nghe thêm child mới, cũng bật luôn
-gamepassFolder.ChildAdded:Connect(function(c)
-    if c:IsA("BoolValue") then
-        c.Value = true
-    end
-end)
-
--- 5) (Tuỳ chọn) Đảm bảo nếu game tự reset giá trị thì cứ 5 giây bật lại
-spawn(function()
-    while true do
-        enableAllPasses()
-        wait(5)
-    end
-end)
