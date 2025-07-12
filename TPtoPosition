@@ -1,0 +1,42 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local fileName = "SavedPosition.json"
+
+-- Load position from file if exists
+local success, result = pcall(function()
+    return HttpService:JSONDecode(readfile(fileName))
+end)
+
+if success and result and result.x and result.y and result.z then
+    -- Teleport to saved position
+    local savedPos = Vector3.new(result.x, result.y, result.z)
+
+    -- Force hold position for 5 seconds
+    local start = tick()
+    task.spawn(function()
+        while tick() - start < 5 do
+            if hrp then
+                hrp.CFrame = CFrame.new(savedPos)
+            end
+            task.wait()
+        end
+    end)
+
+    warn(":white_check_mark: Teleported and holding at saved position:", savedPos)
+else
+    -- Save current position
+    local currentPos = hrp.Position
+    local posTable = {
+        x = currentPos.X,
+        y = currentPos.Y,
+        z = currentPos.Z
+    }
+
+    local encoded = HttpService:JSONEncode(posTable)
+    writefile(fileName, encoded)
+    warn(":pushpin: Position saved:", currentPos)
+end
