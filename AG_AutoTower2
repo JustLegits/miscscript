@@ -1,0 +1,84 @@
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local player = Players.LocalPlayer
+
+-- Constants
+local stageName = "The Lost Ancient World"
+local targetTeleportPlaceId = 17282336195
+
+-- References
+local stage = player:WaitForChild("Stages"):WaitForChild(stageName)
+local floor = stage:WaitForChild("Floor")
+local dragonPoints = player:WaitForChild("ItemsInventory"):WaitForChild("Dragonpoints"):WaitForChild("Amount")
+
+-- Create portal function
+local function createPortal()
+    local currentFloor = tostring(floor.Value)
+
+    local args = {
+        "Tower Adventures",
+        {
+            stageName,
+            currentFloor,
+            "Tower Adventures"
+        }
+    }
+
+    local success, result = pcall(function()
+        return ReplicatedStorage:WaitForChild("PlayMode")
+            :WaitForChild("Events")
+            :WaitForChild("CreatingPortal")
+            :InvokeServer(unpack(args))
+    end)
+
+    if success then
+        print("✅ Portal created at floor:", currentFloor)
+    else
+        warn("❌ Portal creation failed:", result)
+    end
+end
+
+-- Use capsule function
+local function useRagnaCapsule()
+    local args1 = {
+        "999",
+        "Ragna Capsule",
+        "RagnaShop"
+    }
+
+    ReplicatedStorage:WaitForChild("PlayMode")
+        :WaitForChild("Events")
+        :WaitForChild("EventShop")
+        :InvokeServer(unpack(args1))
+
+    task.wait(1)
+
+    local args2 = {
+        "Ragna Capsule",
+        999
+    }
+
+    ReplicatedStorage:WaitForChild("PlayMode")
+        :WaitForChild("Events")
+        :WaitForChild("Use")
+        :InvokeServer(unpack(args2))
+end
+
+-- Execute capsule usage
+useRagnaCapsule()
+task.wait(2)
+useRagnaCapsule()
+task.wait(10)
+
+-- Check dragon points and act accordingly every 15 seconds
+while true do
+    if dragonPoints.Value >= 10000 then
+        TeleportService:Teleport(targetTeleportPlaceId, player)
+        break
+    else
+        createPortal()
+    end
+    task.wait(15)
+end
