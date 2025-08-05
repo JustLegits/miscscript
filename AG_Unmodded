@@ -1,0 +1,115 @@
+-- Auto Join
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+local stageName = "The Lost Ancient World"
+
+local stage = player:WaitForChild("Stages"):WaitForChild(stageName)
+local floor = stage:WaitForChild("Floor")
+
+while true do
+    local currentFloor = floor.Value
+
+    local args = {
+        [1] = "Create",
+        [2] = {
+            [1] = stageName,
+            [2] = tostring(currentFloor),
+            [3] = "Tower Adventures"
+        }
+    }
+
+    local success, result = pcall(function()
+        return ReplicatedStorage:WaitForChild("PlayMode")
+            :WaitForChild("Events")
+            :WaitForChild("CreatingPortal")
+            :InvokeServer(unpack(args))
+    end)
+
+    if success then
+        print("✅ Success", currentFloor)
+    else
+        warn("❌ Failed:", result)
+    end
+
+    task.wait(2)
+end
+
+-- Check Dragon Point
+local p = game:GetService("Players").LocalPlayer
+local tps = game:GetService("TeleportService")
+local a = p:WaitForChild("ItemsInventory"):WaitForChild("Dragonpoints"):WaitForChild("Amount")
+
+while true do
+    task.wait(5)
+    print("[Dragonpoints]: " .. a.Value)
+    if a.Value >= 10000 then
+        tps:Teleport(17282336195, p)
+        break
+    end
+end
+
+-- Auto buy capsule
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+local stageName = "The Lost Ancient World"
+
+local function createPortal()
+    local stage = player:WaitForChild("Stages"):WaitForChild(stageName)
+    local floor = stage:WaitForChild("Floor")
+    local nextFloor = floor.Value
+
+    local args = {
+        "Tower Adventures",
+        {
+            stageName,
+            nextFloor,
+            "Tower Adventures"
+        }
+    }
+
+    local success, result = pcall(function()
+        return ReplicatedStorage:WaitForChild("PlayMode")
+            :WaitForChild("Events")
+            :WaitForChild("CreatingPortal")
+            :InvokeServer(unpack(args))
+    end)
+
+    if success then
+        print("✅ Success:", nextFloor)
+    else
+        warn("❌ Failed:", result)
+    end
+end
+
+local function useRagnaCapsule()
+    local args1 = {
+        "999",
+        "Ragna Capsule",
+        "RagnaShop"
+    }
+
+    ReplicatedStorage:WaitForChild("PlayMode")
+        :WaitForChild("Events")
+        :WaitForChild("EventShop")
+        :InvokeServer(unpack(args1))
+
+    task.wait(1)
+
+    local args2 = {
+        "Ragna Capsule",
+        999
+    }
+
+    ReplicatedStorage:WaitForChild("PlayMode")
+        :WaitForChild("Events")
+        :WaitForChild("Use")
+        :InvokeServer(unpack(args2))
+end
+
+useRagnaCapsule()
+task.wait(2) 
+useRagnaCapsule()
+task.wait(2) 
+createPortal()
