@@ -1,0 +1,93 @@
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+wait(math.random())
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+
+-- References
+local stageName = "The Lost Ancient World"
+local stage = player:WaitForChild("Stages"):WaitForChild(stageName)
+local floor = stage:WaitForChild("Floor")
+
+-- Function: Use Capsule
+local function useRagnaCapsule()
+    local args1 = {
+        "999",
+        "Ragna Capsule",
+        "RagnaShop"
+    }
+
+    ReplicatedStorage:WaitForChild("PlayMode")
+        :WaitForChild("Events")
+        :WaitForChild("EventShop")
+        :InvokeServer(unpack(args1))
+
+    task.wait(1)
+
+    local args2 = {
+        "Ragna Capsule",
+        999
+    }
+
+    ReplicatedStorage:WaitForChild("PlayMode")
+        :WaitForChild("Events")
+        :WaitForChild("Use")
+        :InvokeServer(unpack(args2))
+end
+
+-- Function: Create and Start Portal
+local function createPortal()
+    local currentFloor = tostring(floor.Value)
+
+    local createArgs = {
+        "Tower Adventures",
+        {stageName, currentFloor, "Tower Adventures"}
+    }
+
+    local success = pcall(function()
+        ReplicatedStorage:WaitForChild("PlayMode")
+            :WaitForChild("Events")
+            :WaitForChild("CreatingPortal")
+            :InvokeServer(unpack(createArgs))
+    end)
+
+    if success then
+        print("✅ Portal created at floor:", currentFloor)
+        task.wait(2)
+
+        local startArgs = {
+            "Create",
+            {stageName, currentFloor, "Tower Adventures"}
+        }
+
+        local startSuccess = pcall(function()
+            ReplicatedStorage:WaitForChild("PlayMode")
+                :WaitForChild("Events")
+                :WaitForChild("CreatingPortal")
+                :InvokeServer(unpack(startArgs))
+        end)
+
+        if startSuccess then
+            print("🚀 Portal started at floor:", currentFloor)
+        else
+            warn("⚠️ Failed to start portal")
+        end
+    else
+        warn("❌ Portal creation failed")
+    end
+end
+
+-- Loop: Use Capsule + Portal every 15s
+while true do
+    useRagnaCapsule()
+    task.wait(2)
+    useRagnaCapsule()
+    task.wait(1)
+    createPortal()
+    task.wait(15)
+end
