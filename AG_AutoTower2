@@ -13,11 +13,12 @@ local stage = player:WaitForChild("Stages"):WaitForChild(stageName)
 local floor = stage:WaitForChild("Floor")
 local dragonPoints = player:WaitForChild("ItemsInventory"):WaitForChild("Dragonpoints"):WaitForChild("Amount")
 
--- Create portal function
+-- Create + Start portal function
 local function createPortal()
     local currentFloor = tostring(floor.Value)
 
-    local args = {
+    -- Step 1: Create portal
+    local createArgs = {
         "Tower Adventures",
         {
             stageName,
@@ -30,11 +31,35 @@ local function createPortal()
         return ReplicatedStorage:WaitForChild("PlayMode")
             :WaitForChild("Events")
             :WaitForChild("CreatingPortal")
-            :InvokeServer(unpack(args))
+            :InvokeServer(unpack(createArgs))
     end)
 
     if success then
         print("✅ Portal created at floor:", currentFloor)
+
+        -- Step 2: Start portal
+        local startArgs = {
+            "Create",
+            {
+                stageName,
+                currentFloor,
+                "Tower Adventures"
+            }
+        }
+
+        local startSuccess, startResult = pcall(function()
+            return ReplicatedStorage:WaitForChild("PlayMode")
+                :WaitForChild("Events")
+                :WaitForChild("CreatingPortal")
+                :InvokeServer(unpack(startArgs))
+        end)
+
+        if startSuccess then
+            print("🚀 Portal started at floor:", currentFloor)
+        else
+            warn("⚠️ Failed to start portal:", startResult)
+        end
+
     else
         warn("❌ Portal creation failed:", result)
     end
