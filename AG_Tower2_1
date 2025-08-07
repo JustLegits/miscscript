@@ -87,7 +87,7 @@ while true do
     useRagnaCapsule()
     task.wait(2)
     useRagnaCapsule()
-    task.wait(1)
+    task.wait(2)
     createPortal()
-    task.wait(15)
+    task.wait(10)
 end
