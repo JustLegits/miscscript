@@ -37,6 +37,9 @@ local function createPortal()
     if success then
         print("✅ Portal created at floor:", currentFloor)
 
+        -- Wait 2 seconds before starting portal
+        task.wait(2)
+
         -- Step 2: Start portal
         local startArgs = {
             "Create",
