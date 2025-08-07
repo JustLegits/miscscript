@@ -109,6 +109,7 @@ task.wait(10)
 
 -- Check dragon points and act accordingly every 15 seconds
 while true do
+    task.wait(15)
     print("[Dragonpoints]: " .. a.Value)
     if a.Value >= 10000 then
         tps:Teleport(17282336195, p)
@@ -116,5 +117,4 @@ while true do
     else
         createPortal()
     end
-    task.wait(15)
 end
