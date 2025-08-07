@@ -105,7 +105,6 @@ end
 useRagnaCapsule()
 task.wait(2)
 useRagnaCapsule()
-task.wait(10)
 
 -- Check dragon points and act accordingly every 15 seconds
 while true do
