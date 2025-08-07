@@ -9,7 +9,7 @@ local tps = game:GetService("TeleportService")
 local a = p:WaitForChild("ItemsInventory"):WaitForChild("Dragonpoints"):WaitForChild("Amount")
 
 while true do
-    task.wait(15)
+    task.wait(10)
     print("[Dragonpoints]: " .. a.Value)
     if a.Value >= 10000 then
         tps:Teleport(17282336195, p)
