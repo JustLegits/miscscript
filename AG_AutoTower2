@@ -10,11 +10,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
--- Constants
-local stageName = "The Lost Ancient World"
-local targetTeleportPlaceId = 17282336195
-
 -- References
+local stageName = "The Lost Ancient World"
 local stage = player:WaitForChild("Stages"):WaitForChild(stageName)
 local floor = stage:WaitForChild("Floor")
 local dragonPoints = player:WaitForChild("ItemsInventory"):WaitForChild("Dragonpoints"):WaitForChild("Amount")
@@ -110,7 +107,7 @@ task.wait(10)
 while true do
     print("[Dragonpoints]: " .. dragonPoints.Value)
     if dragonPoints.Value >= 10000 then
-        TeleportService:Teleport(targetTeleportPlaceId, player)
+        TeleportService:Teleport(17282336195, player)
         break
     else
         createPortal()
