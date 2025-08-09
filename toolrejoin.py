@@ -494,7 +494,7 @@ def _wKTTSoTG ():
                             _zQEoUbxb (package ,link )
                         time .sleep (3 )
                     _zYnBhkEn (accounts ,bypass_status )
-                    time .sleep (90 )
+                    time .sleep (120 )
             except KeyboardInterrupt :
                 _dSYvqykq (LANG [('stop_auto') ],('warn') )
         elif choice ==('2') :
