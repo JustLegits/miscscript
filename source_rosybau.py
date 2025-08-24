@@ -226,17 +226,15 @@ def status_table(accounts, bypass_status):
     divider()
     for package, uid in accounts:
         username = get_username(uid) or uid
-
-        # NEW: use local JSON check
-        ptype = check_user_online_local(username)
-
+        ptype = check_user_online(uid)
         if ptype == 2:
             status = Fore.LIGHTGREEN_EX + LANG["playing"]
+        elif ptype == 1:
+            status = Fore.LIGHTYELLOW_EX + LANG["lobby"]
         elif ptype == 0:
             status = Fore.LIGHTRED_EX + LANG["offline"]
         else:
             status = Fore.LIGHTBLACK_EX + LANG["unknown"]
-
         print(f"{Fore.LIGHTCYAN_EX}{package:<18}{Style.RESET_ALL} {username:<18} {status + Style.RESET_ALL:<12}")
     divider()
     print(Fore.LIGHTMAGENTA_EX + LANG["fluxus_bypass"].format(bypass_status=bypass_status) + Style.RESET_ALL)
@@ -320,49 +318,6 @@ def get_username(user_id):
         return data.get("name", "Không rõ" if LANG==LANGS["vi"] else "Unknown")
     except:
         return None
-
-def check_user_online_local(username):
-    """
-    Check user status from executor-generated JSON file.
-    Returns:
-        2 = Online (Playing)
-        0 = Offline
-        None = Unknown/Invalid
-    """
-    try:
-        folder = os.path.join("Workspace", "Reconnect")
-        path = os.path.join(folder, f"reconnect_status_{username}.json")
-
-        if not os.path.exists(path):
-            return None
-
-        with open(path, "r") as f:
-            data = json.load(f)
-
-        # Match username
-        if data.get("user") != username:
-            return None
-
-        # Check timestamp freshness
-        ts = data.get("timestamp")
-        if ts is None:
-            return None
-
-        diff = abs(time.time() - ts)
-        if diff > 120:
-            return 0  # Offline if more than 120s old
-
-        # Status check
-        status = data.get("status", "").lower()
-        if status == "online":
-            return 2   # same code as "Playing"
-        elif status == "offline":
-            return 0
-        else:
-            return None
-    except Exception:
-        return None
-
 
 def check_user_online(user_id):
     try:
@@ -485,20 +440,6 @@ def change_android_id_fixed():
         msg(LANG["androidid_fail"], "err")
         return False
 
-def robust_check_user_online(user_id, prev_status=None, retries=2, delay=2):
-    """
-    Retry presence check if status is 'lobby' and previous status was 'playing'.
-    """
-    status = check_user_online(user_id)
-    if status == 1 and prev_status == 2:
-        # If previously playing, but now lobby, retry a few times
-        for _ in range(retries):
-            time.sleep(delay)
-            status = check_user_online(user_id)
-            if status == 2:
-                break
-    return status
-
 # ------------- MAIN -------------
 def main():
     select_language()
@@ -531,25 +472,18 @@ def main():
                 launch_roblox(package, server_link)
             msg(LANG["auto_running"], "ok")
             try:
-                status_cache = {}
                 while True:
                     for package, uid in accounts:
                         username = get_username(uid) or uid
-
-                        # NEW: use local JSON file check instead of Roblox API
-                        status = check_user_online_local(username)
-                        status_cache[username] = status
-
-                        if status == 2:  # Online
+                        status = check_user_online(uid)
+                        if status == 2:
                             msg(LANG["rejoin_in"].format(username=username, uid=uid), "ok")
-                        else:  # Offline or stale
+                        else:
                             msg(LANG["rejoin_out"].format(username=username, uid=uid), "warn")
                             kill_roblox_process(package)
                             link = dict(server_links).get(package, "")
                             launch_roblox(package, link)
-
                         time.sleep(3)
-
                     status_table(accounts, bypass_status)
                     time.sleep(120)
             except KeyboardInterrupt:
