@@ -321,16 +321,37 @@ def get_username(user_id):
     except:
         return None
 
+# ...existing code...
+
+def find_workspace_folder():
+    """
+    Try to locate the Workspace folder in common locations.
+    Returns the absolute path if found, else None.
+    """
+    possible_dirs = [
+        os.path.join(os.getcwd(), "Workspace"),
+        os.path.expanduser("~/Workspace"),
+        "Workspace",
+        "/storage/emulated/0/Android/data/com.roblox.client/Workspace"
+    ]
+    for d in possible_dirs:
+        if os.path.isdir(d):
+            return d
+    return None
+
 def check_user_online_local(username):
     """
     Check user status from executor-generated JSON file.
     Returns:
-        2 = Online (Playing)
+        2 = Online
         0 = Offline
         None = Unknown/Invalid
     """
     try:
-        folder = os.path.join("Workspace", "Reconnect")
+        workspace_folder = find_workspace_folder()
+        if not workspace_folder:
+            return None
+        folder = os.path.join(workspace_folder, "Reconnect")
         path = os.path.join(folder, f"reconnect_status_{username}.json")
 
         if not os.path.exists(path):
@@ -343,26 +364,23 @@ def check_user_online_local(username):
         if data.get("user") != username:
             return None
 
-        # Check timestamp freshness
+        # Check timestamp freshness (not older than 60 seconds)
         ts = data.get("timestamp")
-        if ts is None:
-            return None
-
-        diff = abs(time.time() - ts)
-        if diff > 120:
-            return 0  # Offline if more than 120s old
+        if ts is None or abs(time.time() - ts) > 60:
+            return 0  # Offline if more than 60s old
 
         # Status check
         status = data.get("status", "").lower()
         if status == "online":
-            return 2   # same code as "Playing"
+            return 2   # Online
         elif status == "offline":
-            return 0
+            return 0   # Offline
         else:
             return None
     except Exception:
         return None
 
+# ...existing code...
 
 def check_user_online(user_id):
     try:
