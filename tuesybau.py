@@ -518,7 +518,7 @@ def main():
                         status_cache[uid] = status
                         if status == 2:
                             msg(LANG["rejoin_in"].format(username=username, uid=uid), "ok")
-                        elif status in (0):  # Offline or Lobby
+                        elif status in (0,):  # Offline or Lobby
                             msg(LANG["rejoin_out"].format(username=username, uid=uid), "warn")
                             if webhook_url and device_name:
                                 send_status_webhook(webhook_url, device_name, username, uid, status)
