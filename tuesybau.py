@@ -167,16 +167,16 @@ def clear():
 def banner():
     clear()
     print(Fore.LIGHTMAGENTA_EX + r"""
-  ____                 _       __  __                                   
- |  _ \ ___  ___ _   _| |__   |  \/  | __ _ _ __   __ _  __ _  ___ _ __ 
- | |_) / _ \/ __| | | | '_ \  | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
- |  _ < (_) \__ \ |_| | |_) | | |  | | (_| | | | | (_| | (_| |  __/ |   
- |_| \_\___/|___/\__, |_.__/  |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|   
-                 |___/                                  |___/                                                                                        
+ _____             ____        _                 
+|_   _|   _  ___  / ___| _   _| |__   __ _ _   _ 
+  | || | | |/ _ \ \___ \| | | | '_ \ / _` | | | |
+  | || |_| |  __/  ___) | |_| | |_) | (_| | |_| |
+  |_| \__,_|\___| |____/ \__, |_.__/ \__,_|\__,_|
+                         |___/                                                                                               
 """ + Style.RESET_ALL)
     show_sysinfo()
-    print(Fore.LIGHTMAGENTA_EX + "" + Fore.LIGHTCYAN_EX + " discord.gg/KmFM6DyvPB        " + Fore.LIGHTMAGENTA_EX + "")
-    print(Fore.LIGHTMAGENTA_EX + "" + Fore.LIGHTCYAN_EX + " Made by : th4t9ng - Rosyb Manager                       " + Fore.LIGHTMAGENTA_EX + "" + Style.RESET_ALL)
+    print(Fore.LIGHTMAGENTA_EX + "" + Fore.LIGHTCYAN_EX + " Tue Ngok Ngek        " + Fore.LIGHTMAGENTA_EX + "")
+    print(Fore.LIGHTMAGENTA_EX + "" + Fore.LIGHTCYAN_EX + " Made by : Chu' cua? Tue - Tue Sybau                       " + Fore.LIGHTMAGENTA_EX + "" + Style.RESET_ALL)
     print()
 
 def show_sysinfo():
