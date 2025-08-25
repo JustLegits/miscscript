@@ -469,13 +469,12 @@ def change_android_id_fixed():
 def robust_check_user_online(user_id, prev_status=None, delay=30):
     """
     Retry presence check if status is 'lobby' and previous status was 'playing'.
+    Delay set to 30s to avoid duplicate results.
     """
     status = check_user_online(user_id)
-    if status == 1 and prev_status == 2:
-            time.sleep(delay)
-            status = check_user_online(user_id)
-            if status == 2:
-                break
+    if status in (0, 1) and prev_status == 2:
+        time.sleep(delay)
+        status = check_user_online(user_id)
     return status
 
 # ------------- MAIN -------------
