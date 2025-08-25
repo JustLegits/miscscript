@@ -502,7 +502,7 @@ def main():
                             launch_roblox(package, link)
                         time.sleep(3)
                     status_table(accounts, bypass_status)
-                    time.sleep(30)
+                    time.sleep(120)
             except KeyboardInterrupt:
                 msg(LANG["stop_auto"], "warn")
         elif choice == "2":
