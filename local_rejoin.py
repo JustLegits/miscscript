@@ -198,7 +198,7 @@ def auto_rejoin():
                     launch_roblox(pkg, link)
                     send_webhook(f"{username} offline → rejoined {pkg}")
                 time.sleep(3)
-            time.sleep(60)
+            time.sleep(200)
     except KeyboardInterrupt:
         msg("[i] Dừng auto rejoin.")
 
