@@ -122,12 +122,24 @@ def load_config():
 def save_config(cfg):
     json.dump(cfg, open(CONFIG_FILE,"w",encoding="utf-8"), indent=2)
 
-def find_reconnect_dirs(base="/sdcard/Android/data"):
+import os
+
+def find_reconnect_dirs(bases=None):
+    if bases is None:
+        bases = [
+            "/sdcard/Android/data",
+            "/storage/emulated/0"
+        ]
+    
     results = []
-    for root, dirs, files in os.walk(base):
-        if "Reconnect" in dirs:
-            results.append(os.path.join(root, "Reconnect"))
+    for base in bases:
+        if not os.path.exists(base):
+            continue
+        for root, dirs, files in os.walk(base):
+            if "Reconnect" in dirs:
+                results.append(os.path.join(root, "Reconnect"))
     return results
+
 
 # ============ Heartbeat ============
 def read_heartbeat(path):
