@@ -15,7 +15,7 @@ Local Rejoin Tool (no API for rejoin)
 - Tự động quét /sdcard/Android/data để tìm thư mục Reconnect/
 """
 
-import os, time, json, subprocess, requests
+import os, time, json, subprocess, requests, sys
 
 CONFIG_FILE = "config.json"
 SERVER_LINKS_FILE = "Private_Link.txt"
@@ -23,7 +23,6 @@ ACCOUNTS_FILE = "Account.txt"
 WEBHOOK_FILE = "Webhook.txt"
 
 # ============ Các hàm tiện ích ============
-
 def msg(text, type="info"):
     print(text)
 
@@ -34,7 +33,6 @@ def wait_back_menu():
     input("[Nhấn Enter để quay lại menu]")
 
 # ============ File IO ============
-
 def load_pairs(path):
     if not os.path.exists(path):
         return []
@@ -66,7 +64,6 @@ def save_server_links(links):
     save_pairs(SERVER_LINKS_FILE, links)
 
 # ============ Roblox actions ============
-
 def get_roblox_packages():
     result = subprocess.run(
         "pm list packages | grep 'roblox'",
@@ -115,7 +112,6 @@ def launch_roblox(package, server_link):
         msg(f"[!] Lỗi mở Roblox: {e}", "err")
 
 # ============ Config & Reconnect dir ============
-
 def load_config():
     if os.path.exists(CONFIG_FILE):
         try:
@@ -134,7 +130,6 @@ def find_reconnect_dirs(base="/sdcard/Android/data"):
     return results
 
 # ============ Heartbeat ============
-
 def read_heartbeat(path):
     try:
         data = json.load(open(path,"r",encoding="utf-8"))
@@ -203,7 +198,7 @@ def auto_rejoin():
                     launch_roblox(pkg, link)
                     send_webhook(f"{username} offline → rejoined {pkg}")
                 time.sleep(3)
-            time.sleep(180)
+            time.sleep(60)
     except KeyboardInterrupt:
         msg("[i] Dừng auto rejoin.")
 
@@ -351,5 +346,9 @@ def menu():
         else:
             msg("[!] Lựa chọn không hợp lệ.", "err")
 
+# ============ Entry ============
 if __name__ == "__main__":
-    menu()
+    if len(sys.argv) > 1 and sys.argv[1] == "--auto":
+        auto_rejoin()
+    else:
+        menu()
