@@ -155,20 +155,30 @@ def read_heartbeat(path):
         return (False, 1e9, "")
 
 # ============ Webhook ============
-def set_webhook(url):
-    open(WEBHOOK_FILE,"w",encoding="utf-8").write(url.strip())
+def set_webhook(url, user_id=""):
+    with open(WEBHOOK_FILE, "w", encoding="utf-8") as f:
+        f.write(url.strip() + "\n" + user_id.strip())
 
 def get_webhook():
     if not os.path.exists(WEBHOOK_FILE):
-        return ""
-    return open(WEBHOOK_FILE,"r",encoding="utf-8").read().strip()
+        return "", ""
+    lines = open(WEBHOOK_FILE, "r", encoding="utf-8").read().splitlines()
+    url = lines[0].strip() if len(lines) > 0 else ""
+    uid = lines[1].strip() if len(lines) > 1 else ""
+    return url, uid
 
 def send_webhook(msgtxt):
-    url = get_webhook()
-    if not url: return
+    url, uid = get_webhook()
+    if not url:
+        return
     try:
-        requests.post(url, json={"content": msgtxt}, timeout=5)
-    except: pass
+        if uid:
+            content = f"<@{uid}> {msgtxt}"
+        else:
+            content = msgtxt
+        requests.post(url, json={"content": content}, timeout=5)
+    except:
+        pass
 
 # ============ MENU FUNCTIONS ============
 def auto_rejoin():
@@ -273,8 +283,9 @@ def delete_entry():
 # /6: webhook
 def set_webhook_menu():
     url = prompt("Nhập webhook URL:")
-    set_webhook(url)
-    msg("[i] Đã lưu webhook.", "ok")
+    user_id = prompt("Nhập Discord User ID để ping (có thể bỏ trống):")
+    set_webhook(url, user_id)
+    msg("[i] Đã lưu webhook và user ID.", "ok")
     wait_back_menu()
 
 # /7: dùng UID từ appStorage.json → API lấy username
