@@ -21,6 +21,7 @@ CONFIG_FILE = "config.json"
 SERVER_LINKS_FILE = "Private_Link.txt"
 ACCOUNTS_FILE = "Account.txt"
 WEBHOOK_FILE = "Webhook.txt"
+ANDROID_ID = "b419fa14320149db"
 
 # ============ Các hàm tiện ích ============
 def msg(text, type="info"):
@@ -180,6 +181,67 @@ def send_webhook(msgtxt):
     except:
         pass
 
+def disable_bloatware_apps():
+    print(Fore.LIGHTBLUE_EX + "Đang vô hiệu hóa các ứng dụng không cần thiết...")
+    apps_to_disable = [ 
+        "com.wsh.toolkit", "com.wsh.appstorage", "com.wsh.launcher2", "com.android.calculator2", "com.android.music", "com.android.musicfx", "com.sohu.inputmethod.sogou", "net.sourceforge.opencamera", "com.google.android.googlequicksearchbox", "com.google.android.gms",
+        "com.google.android.gm", "com.google.android.youtube", "com.google.android.apps.docs", "com.android.chrome",
+        "com.google.android.apps.meetings", "com.google.android.apps.maps", "com.google.android.apps.photos",
+        "com.google.android.contacts", "com.google.android.calendar", "com.android.vending", "com.google.ar.core",
+        "com.google.android.play.games", "com.google.android.apps.magazines", "com.google.android.apps.subscriptions.red",
+        "com.google.android.videos", "com.google.android.apps.googleassistant", "com.google.android.apps.messaging",
+        "com.google.android.dialer", "com.android.mms", "com.android.dialer", "com.og.toolcenter",
+        "com.og.gamecenter", "com.android.launcher3", "com.android.contacts", "com.android.calendar",
+        "com.android.calllogbackup", "com.wsh.appstore", "com.android.tools", "com.android.quicksearchbox",
+        "com.google.android.apps.gallery", "com.google.android.apps.wellbeing", "com.google.android.apps.googleone",
+        "com.google.android.apps.nbu.files", "com.og.launcher", "com.sec.android.gallery3d", "com.miui.gallery",
+        "com.coloros.gallery3d", "com.vivo.gallery", "com.motorola.gallery", "com.transsion.gallery",
+        "com.sonyericsson.album", "com.lge.gallery", "com.htc.album", "com.huawei.photos",
+        "com.android.gallery3d", "com.android.gallery", "com.google.android.deskclock", "com.sec.android.app.clockpackage",
+        "com.miui.clock", "com.coloros.alarmclock", "com.vivo.alarmclock", "com.motorola.timeweatherwidget",
+        "com.android.deskclock", "com.huawei.clock", "com.lge.clock", "com.android.email",
+        "com.android.printspooler", "com.android.bookmarkprovider", "com.android.bips", "com.android.cellbroadcastreceiver",
+        "com.android.cellbroadcastservice", "com.android.dreams.basic", "com.android.dreams.phototable",
+        "com.android.wallpaperbackup", "com.android.wallpapercropper", "com.android.statementservice",
+        "com.android.hotwordenrollment.okgoogle", "com.android.hotwordenrollment.xgoogle", "com.android.sharedstoragebackup",
+        "com.android.vpndialogs", "com.android.stk", "com.google.android.tag", "com.android.bluetoothmidiservice",
+        "com.google.android.apps.messaging", "com.google.android.dialer", "com.android.mms", "com.android.messaging",
+        "com.android.dialer", "com.android.contacts", "com.samsung.android.messaging", "com.android.mms.service",
+        "com.miui.smsservice", "com.coloros.mms", "com.vivo.message", "com.huawei.message",
+        "com.lge.message", "com.sonyericsson.conversations", "com.motorola.messaging",
+        "com.transsion.message", "com.android.cellbroadcastreceiver", "com.android.cellbroadcastservice"
+    ]
+    for package_name in apps_to_disable:
+        if _run_cmd(["pm", "disable-user", "--user", "0", package_name], check_success=False):
+            print(Fore.LIGHTGREEN_EX + f"Đã vô hiệu hóa: {package_name}")
+        else:
+            print(Fore.LIGHTYELLOW_EX + f"Bỏ qua hoặc không thể vô hiệu hóa: {package_name}")
+
+def set_android_id():
+    print(Fore.LIGHTYELLOW_EX + f"Đang đặt Android ID thành {ANDROID_ID}...", end=" ")
+    if _run_cmd(["settings", "put", "secure", "android_id", ANDROID_ID], check_success=True):
+        print(Fore.LIGHTGREEN_EX + "Hoàn tất")
+        return True
+    else:
+        print(Fore.LIGHTRED_EX + "Không thể đặt Android ID")
+        return False
+
+def disable_animations():
+    print(Fore.LIGHTYELLOW_EX + "Đang tắt hiệu ứng động Android...", end=" ")
+    animation_settings = [
+        ["settings", "put", "global", "window_animation_scale", "0"],
+        ["settings", "put", "global", "transition_animation_scale", "0"],
+        ["settings", "put", "global", "animator_duration_scale", "0"]
+    ]
+    success = True
+    for cmd in animation_settings:
+        if not _run_cmd(cmd, check_success=True):
+            print(Fore.LIGHTRED_EX + f"Không thể tắt {cmd[3]}")
+            success = False
+    if success:
+        print(Fore.LIGHTGREEN_EX + "Đã tắt tất cả hiệu ứng động thành công")
+    return success
+
 # ============ MENU FUNCTIONS ============
 def auto_rejoin():
     cfg = load_config()
@@ -331,6 +393,14 @@ def show_saved():
         print(l)
     wait_back_menu()
 
+# /8: Tối ưu máy
+def optimize_android_menu():
+    disable_bloatware_apps()
+    set_android_id()
+    disable_animations()
+    print("[✓] Tối ưu Android hoàn tất.")
+    wait_back_menu()
+
 # ============ Menu ============
 def menu():
     while True:
@@ -344,6 +414,7 @@ def menu():
 6 Thiết lập webhook Discord
 7 Tự động tìm User ID từ appStorage.json
 8 Xem danh sách đã lưu
+9 Tối ưu máy
 10 Thoát tool
 ======================
 """)
@@ -364,6 +435,8 @@ def menu():
             find_uid_from_appstorage()
         elif choice == "8":
             show_saved()
+        elif choice == "9":
+            optimize_android_menu()
         elif choice == "10":
             break
         else:
