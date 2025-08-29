@@ -214,14 +214,14 @@ def disable_bloatware_apps():
         "com.transsion.message", "com.android.cellbroadcastreceiver", "com.android.cellbroadcastservice"
     ]
     for package_name in apps_to_disable:
-        if _run_cmd(["pm", "disable-user", "--user", "0", package_name], check_success=False):
+        if run_cmd(["pm", "disable-user", "--user", "0", package_name], check_success=False):
             print(Fore.LIGHTGREEN_EX + f"Đã vô hiệu hóa: {package_name}")
         else:
             print(Fore.LIGHTYELLOW_EX + f"Bỏ qua hoặc không thể vô hiệu hóa: {package_name}")
 
 def set_android_id():
     print(Fore.LIGHTYELLOW_EX + f"Đang đặt Android ID thành {ANDROID_ID}...", end=" ")
-    if _run_cmd(["settings", "put", "secure", "android_id", ANDROID_ID], check_success=True):
+    if run_cmd(["settings", "put", "secure", "android_id", ANDROID_ID], check_success=True):
         print(Fore.LIGHTGREEN_EX + "Hoàn tất")
         return True
     else:
