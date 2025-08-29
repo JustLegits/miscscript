@@ -34,7 +34,17 @@ def prompt(text):
 
 def wait_back_menu():
     input("[Nhấn Enter để quay lại menu]")
-
+ 
+def run_cmd(cmd, check_success=True):
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if check_success:
+            return result.returncode == 0
+        return result
+    except Exception as e:
+        print(f"Lỗi khi chạy lệnh {cmd}: {e}")
+        return False
+     
 # ============ File IO ============
 def load_pairs(path):
     if not os.path.exists(path):
