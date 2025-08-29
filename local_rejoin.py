@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Local Rejoin Tool (no API for rejoin)
--------------------------------------
-- Menu: 1–8, 10 (bỏ số 9)
-- /1 Auto rejoin: đọc file heartbeat JSON trong thư mục Reconnect
-  * Account.txt lưu theo username
-  * status == "Online" và timestamp lệch ≤ 60s → online
-  * ngược lại → offline → kill Roblox + rejoin + gửi webhook
-- /2 Thêm username thủ công
-- /3, /4, /6, /8 giữ nguyên
-- /5 Xoá: thêm lựa chọn xoá cả username + link
-- /7 Tự động tìm UID từ appStorage.json → gọi API Roblox lấy username → ghi vào Account.txt
-- Tự động quét /sdcard/Android/data để tìm thư mục Reconnect/
-"""
 
 import os, time, json, subprocess, requests, sys
 from colorama import Fore, Style, init
