@@ -230,6 +230,11 @@ def disable_bloatware_apps():
             print(Fore.LIGHTYELLOW_EX + f"Bỏ qua hoặc không thể vô hiệu hóa: {package_name}")
 
 def set_android_id():
+    global ANDROID_ID
+    user_input = input(f"Nhập Android ID mới (Enter để dùng mặc định: {ANDROID_ID}): ").strip()
+    if user_input:
+        ANDROID_ID = user_input
+
     print(Fore.LIGHTYELLOW_EX + f"Đang đặt Android ID thành {ANDROID_ID}...", end=" ")
     if run_cmd(["settings", "put", "secure", "android_id", ANDROID_ID], check_success=True):
         print(Fore.LIGHTGREEN_EX + "Hoàn tất")
@@ -405,13 +410,37 @@ def show_saved():
         print(l)
     wait_back_menu()
 
-# /8: Tối ưu máy
+# /9: Tối ưu máy và change android 
 def optimize_android_menu():
-    disable_bloatware_apps()
-    set_android_id()
-    disable_animations()
-    print("[✓] Tối ưu Android hoàn tất.")
-    wait_back_menu()
+    while True:
+        print("\n===== TỐI ƯU MÁY =====")
+        print("1. Tất cả")
+        print("2. Vô hiệu hóa bloatware")
+        print("3. Đổi Android ID")
+        print("4. Tắt animations")
+        print("5. Quay lại")
+
+        choice = input("Chọn một tùy chọn (1-5): ").strip()
+
+        if choice == "1":
+            if input("Bạn có chắc muốn chạy TẤT CẢ? (y/n): ").lower() == "y":
+                disable_bloatware_apps()
+                set_android_id()
+                disable_animations()
+                print(Fore.LIGHTGREEN_EX + "[✓] Tối ưu Android hoàn tất.")
+        elif choice == "2":
+            if input("Bạn có chắc muốn vô hiệu hóa bloatware? (y/n): ").lower() == "y":
+                disable_bloatware_apps()
+        elif choice == "3":
+            set_android_id()
+        elif choice == "4":
+            disable_animations()
+        elif choice == "5":
+            print("Quay lại menu chính...")
+            wait_back_menu()
+            break
+        else:
+            print(Fore.LIGHTYELLOW_EX + "⚠ Lựa chọn không hợp lệ, vui lòng nhập 1-5.")
 
 # ============ Menu ============
 def menu():
