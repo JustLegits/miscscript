@@ -247,7 +247,7 @@ def disable_animations():
     ]
     success = True
     for cmd in animation_settings:
-        if not _run_cmd(cmd, check_success=True):
+        if not run_cmd(cmd, check_success=True):
             print(Fore.LIGHTRED_EX + f"Không thể tắt {cmd[3]}")
             success = False
     if success:
