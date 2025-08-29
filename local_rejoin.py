@@ -16,6 +16,8 @@ Local Rejoin Tool (no API for rejoin)
 """
 
 import os, time, json, subprocess, requests, sys
+from colorama import Fore, Style, init
+init(autoreset=True)
 
 CONFIG_FILE = "config.json"
 SERVER_LINKS_FILE = "Private_Link.txt"
