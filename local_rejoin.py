@@ -80,7 +80,7 @@ def get_roblox_packages():
 
 def kill_roblox_process(package):
     subprocess.run(["pkill", "-f", package])
-    time.sleep(2)
+    time.sleep(5)
 
 def format_server_link(link):
     link = link.strip()
@@ -101,7 +101,7 @@ def launch_roblox(package, server_link):
             f"{package}/com.roblox.client.startup.ActivitySplash",
             "-d", server_link,
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(2.5)
+        time.sleep(4)
         subprocess.run([
             "am", "start", "-n",
             f"{package}/com.roblox.client.ActivityProtocolLaunch",
@@ -284,7 +284,7 @@ def auto_rejoin():
                     link = links.get(pkg, "")
                     launch_roblox(pkg, link)
                     send_webhook(f"{username} offline → rejoined {pkg}")
-                time.sleep(3)
+                time.sleep(5)
             time.sleep(200)
     except KeyboardInterrupt:
         msg("[i] Dừng auto rejoin.")
