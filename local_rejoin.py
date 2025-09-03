@@ -63,24 +63,35 @@ def save_server_links(links):
     save_pairs(SERVER_LINKS_FILE, links)
 
 # ============ Roblox actions ============
-def get_roblox_packages():
+def get_custom_packages():
+    # Các từ khóa nhận diện package
+    keywords = ["roblox", "bduy", "mangcut", "concacug"]
+
     result = subprocess.run(
-        "pm list packages | grep 'roblox'",
+        "pm list packages",
         shell=True,
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
         return []
+
     pkgs = []
     for line in result.stdout.splitlines():
-        if ":" in line:
-            pkgs.append(line.split(":", 1)[1].strip())
+        if ":" not in line:
+            continue
+        pkg = line.split(":", 1)[1].strip()
+        # Giữ lại nếu tên chứa 1 trong các từ khóa
+        if any(keyword in pkg.lower() for keyword in keywords):
+            pkgs.append(pkg)
     return pkgs
 
 def kill_roblox_process(package):
-    subprocess.run(["pkill", "-f", package])
-    time.sleep(5)
+    try:
+        subprocess.run(["am", "force-stop", package], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(3)
+    except Exception as e:
+        msg(f"[!] Lỗi khi dừng {package}: {e}", "err")
 
 def format_server_link(link):
     link = link.strip()
@@ -135,10 +146,18 @@ def find_reconnect_dirs(bases=None):
         if not os.path.exists(base):
             continue
         for root, dirs, files in os.walk(base):
-            if "Reconnect" in dirs:
-                results.append(os.path.join(root, "Reconnect"))
+            if "Workspace" in dirs:
+                workspace_dir = os.path.join(root, "Workspace")
+                reconnect_dir = os.path.join(workspace_dir, "Reconnect")
+                if not os.path.exists(reconnect_dir):
+                    try:
+                        os.makedirs(reconnect_dir, exist_ok=True)
+                        print(Fore.LIGHTGREEN_EX + f"Đã tạo thư mục: {reconnect_dir}")
+                    except Exception as e:
+                        print(Fore.LIGHTRED_EX + f"Lỗi tạo thư mục {reconnect_dir}: {e}")
+                        continue
+                results.append(reconnect_dir)
     return results
-
 
 # ============ Heartbeat ============
 def read_heartbeat(path):
@@ -180,34 +199,24 @@ def send_webhook(msgtxt):
         pass
 
 def disable_bloatware_apps():
-    print(Fore.LIGHTBLUE_EX + "Đang vô hiệu hóa các ứng dụng không cần thiết...")
-    apps_to_disable = [ 
-        "com.wsh.toolkit", "com.wsh.appstorage", "com.wsh.launcher2", "com.android.calculator2", "com.android.music", "com.android.musicfx", "com.sohu.inputmethod.sogou", "net.sourceforge.opencamera", "com.google.android.googlequicksearchbox", "com.google.android.gms",
-        "com.google.android.gm", "com.google.android.youtube", "com.google.android.apps.docs", "com.android.chrome",
-        "com.google.android.apps.meetings", "com.google.android.apps.maps", "com.google.android.apps.photos",
-        "com.google.android.contacts", "com.google.android.calendar", "com.android.vending", "com.google.ar.core",
-        "com.google.android.play.games", "com.google.android.apps.magazines", "com.google.android.apps.subscriptions.red",
-        "com.google.android.videos", "com.google.android.apps.googleassistant", "com.google.android.apps.messaging",
-        "com.google.android.dialer", "com.android.mms", "com.android.dialer", "com.og.toolcenter",
-        "com.og.gamecenter", "com.android.launcher3", "com.android.contacts", "com.android.calendar",
-        "com.android.calllogbackup", "com.wsh.appstore", "com.android.tools", "com.android.quicksearchbox",
-        "com.google.android.apps.gallery", "com.google.android.apps.wellbeing", "com.google.android.apps.googleone",
-        "com.google.android.apps.nbu.files", "com.og.launcher", "com.sec.android.gallery3d", "com.miui.gallery",
-        "com.coloros.gallery3d", "com.vivo.gallery", "com.motorola.gallery", "com.transsion.gallery",
+    print(Fore.LIGHTBLUE_EX + "Đang vô hiệu hóa các ứng dụng không cần thiết (safe list)...")
+    apps_to_disable = [
+        "com.wsh.toolkit", "com.wsh.appstorage", "com.wsh.launcher2", 
+        "com.og.toolcenter", "com.og.gamecenter", "com.og.launcher",
+        "com.wsh.appstore", "com.android.tools", 
+        "net.sourceforge.opencamera",
+        # Gallery apps từ OEM
+        "com.sec.android.gallery3d", "com.miui.gallery", "com.coloros.gallery3d",
+        "com.vivo.gallery", "com.motorola.gallery", "com.transsion.gallery",
         "com.sonyericsson.album", "com.lge.gallery", "com.htc.album", "com.huawei.photos",
-        "com.android.gallery3d", "com.android.gallery", "com.google.android.deskclock", "com.sec.android.app.clockpackage",
-        "com.miui.clock", "com.coloros.alarmclock", "com.vivo.alarmclock", "com.motorola.timeweatherwidget",
-        "com.android.deskclock", "com.huawei.clock", "com.lge.clock", "com.android.email",
-        "com.android.printspooler", "com.android.bookmarkprovider", "com.android.bips", "com.android.cellbroadcastreceiver",
-        "com.android.cellbroadcastservice", "com.android.dreams.basic", "com.android.dreams.phototable",
-        "com.android.wallpaperbackup", "com.android.wallpapercropper", "com.android.statementservice",
-        "com.android.hotwordenrollment.okgoogle", "com.android.hotwordenrollment.xgoogle", "com.android.sharedstoragebackup",
-        "com.android.vpndialogs", "com.android.stk", "com.google.android.tag", "com.android.bluetoothmidiservice",
-        "com.google.android.apps.messaging", "com.google.android.dialer", "com.android.mms", "com.android.messaging",
-        "com.android.dialer", "com.android.contacts", "com.samsung.android.messaging", "com.android.mms.service",
-        "com.miui.smsservice", "com.coloros.mms", "com.vivo.message", "com.huawei.message",
-        "com.lge.message", "com.sonyericsson.conversations", "com.motorola.messaging",
-        "com.transsion.message", "com.android.cellbroadcastreceiver", "com.android.cellbroadcastservice"
+        "com.android.gallery3d", "com.android.gallery",
+        # Clock/Alarm OEM (để tránh duplicate với đồng hồ mặc định)
+        "com.sec.android.app.clockpackage", "com.miui.clock", "com.coloros.alarmclock",
+        "com.vivo.alarmclock", "com.motorola.timeweatherwidget",
+        "com.huawei.clock", "com.lge.clock", "com.htc.alarmclock",
+        # Misc rác ít dùng
+        "com.android.dreams.basic", "com.android.dreams.phototable",
+        "com.android.wallpaperbackup", "com.android.wallpapercropper"
     ]
     for package_name in apps_to_disable:
         if run_cmd(["pm", "disable-user", "--user", "0", package_name], check_success=False):
@@ -355,7 +364,7 @@ def set_webhook_menu():
 
 # /7: dùng UID từ appStorage.json → API lấy username
 def find_uid_from_appstorage():
-    pkgs = get_roblox_packages()
+    pkgs = get_custom_packages()
     accounts = []
     for pkg in pkgs:
         fpath = f'/data/data/{pkg}/files/appData/LocalStorage/appStorage.json'
