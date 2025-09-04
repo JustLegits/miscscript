@@ -191,29 +191,29 @@ def add_autoexecute_script():
         idx = int(input("Chọn số: ")) - 1
         auto_dir = dirs[idx]
 
-    # Tìm số tiếp theo cho file autoexecuteN.lua
-    existing = [f for f in os.listdir(auto_dir) if f.startswith("autoexecute") and f.endswith(".lua")]
-    nums = []
-    for f in existing:
-        try:
-            n = int(f.replace("autoexecute", "").replace(".lua", ""))
-            nums.append(n)
-        except:
-            pass
-    next_num = max(nums) + 1 if nums else 1
-    filename = os.path.join(auto_dir, f"autoexecute{next_num}.lua")
-
     print("""
 Chọn loại script:
-1. Script Check Online (loadstring từ GitHub)
-2. Tự nhập script thủ công
+1. Script Check Online (tạo file checkonline.lua)
+2. Tự nhập script thủ công (autoexecuteN.lua)
     """)
     choice = input("Nhập lựa chọn: ").strip()
 
-    script_content = ""
     if choice == "1":
+        filename = os.path.join(auto_dir, "checkonline.lua")
         script_content = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/JustLegits/miscscript/main/checkonline.lua"))()'
     elif choice == "2":
+        # Tìm số tiếp theo cho file autoexecuteN.lua
+        existing = [f for f in os.listdir(auto_dir) if f.startswith("autoexecute") and f.endswith(".lua")]
+        nums = []
+        for f in existing:
+            try:
+                n = int(f.replace("autoexecute", "").replace(".lua", ""))
+                nums.append(n)
+            except:
+                pass
+        next_num = max(nums) + 1 if nums else 1
+        filename = os.path.join(auto_dir, f"autoexecute{next_num}.lua")
+
         print(Fore.LIGHTBLUE_EX + f"Nhập script của bạn (gõ 'end' trên 1 dòng để kết thúc):")
         lines = []
         while True:
@@ -402,29 +402,32 @@ def set_package_link():
 
 # /5: xoá
 def delete_entry():
-    t = prompt("Xóa (1=Username, 2=Link, 3=Cả hai):")
-    if t=="1":
-        accounts = load_accounts()
-        username = prompt("Nhập username cần xóa:")
-        accounts = [(p,u) for p,u in accounts if u!=username]
-        save_accounts(accounts)
-        msg("[i] Đã xóa username.", "ok")
-    elif t=="2":
-        links = load_server_links()
-        pkg = prompt("Nhập package cần xóa link:")
-        links = [(p,l) for p,l in links if p!=pkg]
-        save_server_links(links)
-        msg("[i] Đã xóa link.", "ok")
-    elif t=="3":
-        accounts = load_accounts()
-        username = prompt("Nhập username cần xóa:")
-        accounts = [(p,u) for p,u in accounts if u!=username]
-        save_accounts(accounts)
-        links = load_server_links()
-        pkg = prompt("Nhập package cần xóa link:")
-        links = [(p,l) for p,l in links if p!=pkg]
-        save_server_links(links)
-        msg("[i] Đã xóa cả username và link.", "ok")
+    t = prompt("Xóa (1=User file, 2=Server link file, 3=Cả hai):")
+    if t == "1":
+        if os.path.exists(ACCOUNTS_FILE):
+            os.remove(ACCOUNTS_FILE)
+            msg("[i] Đã xóa toàn bộ Account.txt.", "ok")
+        else:
+            msg("[!] Account.txt không tồn tại.", "err")
+    elif t == "2":
+        if os.path.exists(SERVER_LINKS_FILE):
+            os.remove(SERVER_LINKS_FILE)
+            msg("[i] Đã xóa toàn bộ Private_Link.txt.", "ok")
+        else:
+            msg("[!] Private_Link.txt không tồn tại.", "err")
+    elif t == "3":
+        if os.path.exists(ACCOUNTS_FILE):
+            os.remove(ACCOUNTS_FILE)
+            msg("[i] Đã xóa toàn bộ Account.txt.", "ok")
+        else:
+            msg("[!] Account.txt không tồn tại.", "err")
+        if os.path.exists(SERVER_LINKS_FILE):
+            os.remove(SERVER_LINKS_FILE)
+            msg("[i] Đã xóa toàn bộ Private_Link.txt.", "ok")
+        else:
+            msg("[!] Private_Link.txt không tồn tại.", "err")
+    else:
+        msg("[!] Lựa chọn không hợp lệ.", "err")
     wait_back_menu()
 
 # /6: webhook
