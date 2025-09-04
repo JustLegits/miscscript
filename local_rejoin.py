@@ -159,6 +159,64 @@ def find_reconnect_dirs(bases=None):
                 results.append(reconnect_dir)
     return results
 
+def find_autoexecute_dirs(bases=None):
+    if bases is None:
+        bases = [
+            "/sdcard/Android/data",
+            "/storage/emulated/0"
+        ]
+    results = []
+    for base in bases:
+        if not os.path.exists(base):
+            continue
+        for root, dirs, files in os.walk(base):
+            if "Autoexecute" in dirs:
+                results.append(os.path.join(root, "Autoexecute"))
+    return results
+
+def add_autoexecute_script():
+    dirs = find_autoexecute_dirs()
+    auto_dir = None
+
+    if not dirs:
+        print(Fore.LIGHTYELLOW_EX + "Không tìm thấy thư mục Autoexecute, sẽ tạo mới tại /sdcard/Android/data/Autoexecute")
+        auto_dir = "/sdcard/Android/data/Autoexecute"
+        os.makedirs(auto_dir, exist_ok=True)
+    elif len(dirs) == 1:
+        auto_dir = dirs[0]
+    else:
+        print("Tìm thấy nhiều thư mục Autoexecute:")
+        for i, d in enumerate(dirs):
+            print(f"{i+1}. {d}")
+        idx = int(input("Chọn số: ")) - 1
+        auto_dir = dirs[idx]
+
+    # Tìm số tiếp theo cho file autoexecuteN.lua
+    existing = [f for f in os.listdir(auto_dir) if f.startswith("autoexecute") and f.endswith(".lua")]
+    nums = []
+    for f in existing:
+        try:
+            n = int(f.replace("autoexecute", "").replace(".lua", ""))
+            nums.append(n)
+        except:
+            pass
+    next_num = max(nums) + 1 if nums else 1
+    filename = os.path.join(auto_dir, f"autoexecute{next_num}.lua")
+
+    print(Fore.LIGHTBLUE_EX + f"Nhập script của bạn (gõ 'end' trên 1 dòng để kết thúc):")
+    lines = []
+    while True:
+        line = input()
+        if line.strip().lower() == "end":
+            break
+        lines.append(line)
+
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+    print(Fore.LIGHTGREEN_EX + f"Đã lưu script vào {filename}")
+    wait_back_menu()
+
 # ============ Heartbeat ============
 def read_heartbeat(path):
     try:
@@ -451,7 +509,8 @@ def menu():
 7 Tự động tìm User ID từ appStorage.json
 8 Xem danh sách đã lưu
 9 Tối ưu máy
-10 Thoát tool
+10 Thêm script vào auto execute
+11 Thoát tool
 ======================
 """)
         choice = input("Chọn: ").strip()
@@ -474,6 +533,8 @@ def menu():
         elif choice == "9":
             optimize_android_menu()
         elif choice == "10":
+            add_autoexecute_script()
+        elif choice == "11":
             break
         else:
             msg("[!] Lựa chọn không hợp lệ.", "err")
