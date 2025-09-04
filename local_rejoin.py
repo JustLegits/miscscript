@@ -203,16 +203,31 @@ def add_autoexecute_script():
     next_num = max(nums) + 1 if nums else 1
     filename = os.path.join(auto_dir, f"autoexecute{next_num}.lua")
 
-    print(Fore.LIGHTBLUE_EX + f"Nhập script của bạn (gõ 'end' trên 1 dòng để kết thúc):")
-    lines = []
-    while True:
-        line = input()
-        if line.strip().lower() == "end":
-            break
-        lines.append(line)
+    print("""
+Chọn loại script:
+1. Script Check Online (loadstring từ GitHub)
+2. Tự nhập script thủ công
+    """)
+    choice = input("Nhập lựa chọn: ").strip()
+
+    script_content = ""
+    if choice == "1":
+        script_content = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/JustLegits/miscscript/main/checkonline.lua"))()'
+    elif choice == "2":
+        print(Fore.LIGHTBLUE_EX + f"Nhập script của bạn (gõ 'end' trên 1 dòng để kết thúc):")
+        lines = []
+        while True:
+            line = input()
+            if line.strip().lower() == "end":
+                break
+            lines.append(line)
+        script_content = "\n".join(lines)
+    else:
+        print(Fore.LIGHTRED_EX + "Lựa chọn không hợp lệ.")
+        return
 
     with open(filename, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
+        f.write(script_content + "\n")
 
     print(Fore.LIGHTGREEN_EX + f"Đã lưu script vào {filename}")
     wait_back_menu()
