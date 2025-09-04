@@ -112,7 +112,7 @@ def launch_roblox(package, server_link):
             f"{package}/com.roblox.client.startup.ActivitySplash",
             "-d", server_link,
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(4)
+        time.sleep(2)
         subprocess.run([
             "am", "start", "-n",
             f"{package}/com.roblox.client.ActivityProtocolLaunch",
