@@ -174,64 +174,6 @@ def find_autoexecute_dirs(bases=None):
                 results.append(os.path.join(root, "Autoexecute"))
     return results
 
-def add_autoexecute_script():
-    dirs = find_autoexecute_dirs()
-    auto_dir = None
-
-    if not dirs:
-        print(Fore.LIGHTYELLOW_EX + "Không tìm thấy thư mục Autoexecute, sẽ tạo mới tại /sdcard/Android/data/Autoexecute")
-        auto_dir = "/sdcard/Android/data/Autoexecute"
-        os.makedirs(auto_dir, exist_ok=True)
-    elif len(dirs) == 1:
-        auto_dir = dirs[0]
-    else:
-        print("Tìm thấy nhiều thư mục Autoexecute:")
-        for i, d in enumerate(dirs):
-            print(f"{i+1}. {d}")
-        idx = int(input("Chọn số: ")) - 1
-        auto_dir = dirs[idx]
-
-    print("""
-Chọn loại script:
-1. Script Check Online (tạo file checkonline.lua)
-2. Tự nhập script thủ công (autoexecuteN.lua)
-    """)
-    choice = input("Nhập lựa chọn: ").strip()
-
-    if choice == "1":
-        filename = os.path.join(auto_dir, "checkonline.lua")
-        script_content = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/JustLegits/miscscript/main/checkonline.lua"))()'
-    elif choice == "2":
-        # Tìm số tiếp theo cho file autoexecuteN.lua
-        existing = [f for f in os.listdir(auto_dir) if f.startswith("autoexecute") and f.endswith(".lua")]
-        nums = []
-        for f in existing:
-            try:
-                n = int(f.replace("autoexecute", "").replace(".lua", ""))
-                nums.append(n)
-            except:
-                pass
-        next_num = max(nums) + 1 if nums else 1
-        filename = os.path.join(auto_dir, f"autoexecute{next_num}.lua")
-
-        print(Fore.LIGHTBLUE_EX + f"Nhập script của bạn (gõ 'end' trên 1 dòng để kết thúc):")
-        lines = []
-        while True:
-            line = input()
-            if line.strip().lower() == "end":
-                break
-            lines.append(line)
-        script_content = "\n".join(lines)
-    else:
-        print(Fore.LIGHTRED_EX + "Lựa chọn không hợp lệ.")
-        return
-
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(script_content + "\n")
-
-    print(Fore.LIGHTGREEN_EX + f"Đã lưu script vào {filename}")
-    wait_back_menu()
-
 # ============ Heartbeat ============
 def read_heartbeat(path):
     try:
@@ -371,33 +313,78 @@ def auto_rejoin():
     except KeyboardInterrupt:
         msg("[i] Dừng auto rejoin.")
 
-# /2: thêm username thủ công
+# /2: thêm username thủ công (auto detect package)
 def user_id_menu():
     accounts = load_accounts()
-    pkg = prompt("Nhập package Roblox:")
+    pkgs = get_custom_packages()
+    if not pkgs:
+        msg("[!] Không tìm thấy package Roblox nào.", "err")
+        wait_back_menu()
+        return
+
+    if len(pkgs) == 1:
+        pkg = pkgs[0]
+        print(Fore.LIGHTGREEN_EX + f"Tự động phát hiện package: {pkg}")
+    else:
+        print("Tìm thấy nhiều package Roblox:")
+        for i, p in enumerate(pkgs):
+            print(f"{i+1}. {p}")
+        idx = int(input("Chọn số: ")) - 1
+        pkg = pkgs[idx]
+
     username = prompt("Nhập username:")
     accounts.append((pkg, username))
     save_accounts(accounts)
-    msg("[i] Đã lưu Username.", "ok")
+    msg(f"[i] Đã lưu Username cho package {pkg}.", "ok")
     wait_back_menu()
 
-# /3: thiết lập link chung
+
+# /3: thiết lập link chung (auto detect packages)
 def set_common_link():
+    pkgs = get_custom_packages()
+    if not pkgs:
+        msg("[!] Không tìm thấy package Roblox nào.", "err")
+        wait_back_menu()
+        return
+
     link = prompt("Nhập ID Game/Link server chung:")
-    pkgs = [pkg for pkg,_ in load_accounts()]
-    save_server_links([(pkg, link) for pkg in pkgs])
-    msg("[i] Đã lưu link chung.", "ok")
+    formatted = format_server_link(link)
+    if not formatted:
+        msg("[!] Link không hợp lệ.", "err")
+        wait_back_menu()
+        return
+
+    save_server_links([(pkg, formatted) for pkg in pkgs])
+    msg(f"[i] Đã lưu link chung cho {len(pkgs)} package.", "ok")
     wait_back_menu()
 
-# /4: gán link riêng
+
+# /4: gán link riêng (chọn package từ danh sách detect)
 def set_package_link():
+    pkgs = get_custom_packages()
+    if not pkgs:
+        msg("[!] Không tìm thấy package Roblox nào.", "err")
+        wait_back_menu()
+        return
+
+    print("Danh sách package Roblox:")
+    for i, p in enumerate(pkgs):
+        print(f"{i+1}. {p}")
+    idx = int(input("Chọn số package để gán link: ")) - 1
+    pkg = pkgs[idx]
+
+    link = prompt(f"Nhập link cho package {pkg}:")
+    formatted = format_server_link(link)
+    if not formatted:
+        msg("[!] Link không hợp lệ.", "err")
+        wait_back_menu()
+        return
+
     links = load_server_links()
-    pkg = prompt("Nhập package Roblox:")
-    link = prompt("Nhập link cho package này:")
-    links = [(p,l) for p,l in links if p!=pkg]
-    links.append((pkg, link))
+    links = [(p, l) for p, l in links if p != pkg]  # xóa link cũ của pkg
+    links.append((pkg, formatted))
     save_server_links(links)
-    msg("[i] Đã lưu link riêng.", "ok")
+    msg(f"[i] Đã lưu link riêng cho {pkg}.", "ok")
     wait_back_menu()
 
 # /5: xoá
@@ -512,6 +499,64 @@ def optimize_android_menu():
             break
         else:
             print(Fore.LIGHTYELLOW_EX + "⚠ Lựa chọn không hợp lệ, vui lòng nhập 1-5.")
+
+# /10: Thêm script vào autoexecute folder
+def add_autoexecute_script():
+    dirs = find_autoexecute_dirs()
+    auto_dir = None
+
+    if not dirs:
+        print(Fore.LIGHTRED_EX + "Không tìm thấy thư mục Autoexecute. Hãy kiểm tra lại!")
+        return
+    elif len(dirs) == 1:
+        auto_dir = dirs[0]
+    else:
+        print("Tìm thấy nhiều thư mục Autoexecute:")
+        for i, d in enumerate(dirs):
+            print(f"{i+1}. {d}")
+        idx = int(input("Chọn số: ")) - 1
+        auto_dir = dirs[idx]
+
+    print("""
+Chọn loại script:
+1. Script Check Online (tạo file checkonline.lua)
+2. Tự nhập script thủ công (autoexecuteN.lua)
+    """)
+    choice = input("Nhập lựa chọn: ").strip()
+
+    if choice == "1":
+        filename = os.path.join(auto_dir, "checkonline.lua")
+        script_content = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/JustLegits/miscscript/main/checkonline.lua"))()'
+    elif choice == "2":
+        # Tìm số tiếp theo cho file autoexecuteN.lua
+        existing = [f for f in os.listdir(auto_dir) if f.startswith("autoexecute") and f.endswith(".lua")]
+        nums = []
+        for f in existing:
+            try:
+                n = int(f.replace("autoexecute", "").replace(".lua", ""))
+                nums.append(n)
+            except:
+                pass
+        next_num = max(nums) + 1 if nums else 1
+        filename = os.path.join(auto_dir, f"autoexecute{next_num}.lua")
+
+        print(Fore.LIGHTBLUE_EX + f"Nhập script của bạn (gõ 'end' trên 1 dòng để kết thúc):")
+        lines = []
+        while True:
+            line = input()
+            if line.strip().lower() == "end":
+                break
+            lines.append(line)
+        script_content = "\n".join(lines)
+    else:
+        print(Fore.LIGHTRED_EX + "Lựa chọn không hợp lệ.")
+        return
+
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(script_content + "\n")
+
+    print(Fore.LIGHTGREEN_EX + f"Đã lưu script vào {filename}")
+    wait_back_menu()
 
 # ============ Menu ============
 def menu():
