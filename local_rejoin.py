@@ -88,7 +88,23 @@ def get_custom_packages():
 
 def kill_roblox_process(package):
     try:
-        subprocess.run(["am", "force-stop", package], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.run(
+            ["pidof", package],
+            capture_output=True, text=True
+        )
+        pids = result.stdout.strip().split()
+
+        if not pids or pids == ['']:
+            msg(f"[!] Không tìm thấy tiến trình cho {package}", "err")
+            return
+
+        for pid in pids:
+            try:
+                os.kill(int(pid), 9)  # SIGKILL
+                msg(f"[*] Đã kill {package} (PID {pid})", "ok")
+            except Exception as e:
+                msg(f"[!] Lỗi khi kill {package} PID {pid}: {e}", "err")
+
         time.sleep(3)
     except Exception as e:
         msg(f"[!] Lỗi khi dừng {package}: {e}", "err")
