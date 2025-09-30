@@ -1,5 +1,10 @@
---updated 21/09/25
+--updated 30/09/25
 local codes = {
+    "NewRarity!",
+    "WAdamAndThePlanners",
+    "SuperSorryForDelayedPeak!",
+    "OneMoreWeek!",
+    "JoJoUpdate7.6!",
     "FinallyFate!",
     "Update7!!",
     "Goodbye6.7Update",
