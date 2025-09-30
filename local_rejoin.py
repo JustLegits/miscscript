@@ -86,28 +86,24 @@ def get_custom_packages():
             pkgs.append(pkg)
     return pkgs
 
-def kill_roblox_process(package):
+def kill_roblox_process(package_name):
+    print(f"\033[1;96m[ Shouko.dev ] - Killing Roblox process for {package_name}...\033[0m")
     try:
-        result = subprocess.run(
-            ["pidof", package],
-            capture_output=True, text=True
+        subprocess.run(
+            ["/system/bin/am", "force-stop", package_name],
+            capture_output=True,
+            text=True,
+            check=True
         )
-        pids = result.stdout.strip().split()
-
-        if not pids or pids == ['']:
-            msg(f"[!] Không tìm thấy tiến trình cho {package}", "err")
-            return
-
-        for pid in pids:
-            try:
-                os.kill(int(pid), 9)  # SIGKILL
-                msg(f"[*] Đã kill {package} (PID {pid})", "ok")
-            except Exception as e:
-                msg(f"[!] Lỗi khi kill {package} PID {pid}: {e}", "err")
-
-        time.sleep(3)
-    except Exception as e:
-        msg(f"[!] Lỗi khi dừng {package}: {e}", "err")
+        print(f"\033[1;32m[ Shouko.dev ] - Killed process for {package_name}\033[0m")
+        time.sleep(2)
+    except subprocess.CalledProcessError as e:
+        print(f"\033[1;31m[ Shouko.dev ] - Error killing process for {package_name}: {e}\033[0m")
+        # Nếu chưa có Utilities.log_error thì chỉ print thôi
+        try:
+            Utilities.log_error(f"Error killing process for {package_name}: {e}")
+        except:
+            pass
 
 def format_server_link(link):
     link = link.strip()
