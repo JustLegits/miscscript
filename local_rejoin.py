@@ -196,19 +196,24 @@ def find_autoexecute_dirs(bases=None):
 # ============ Heartbeat ============
 def read_heartbeat(path):
     try:
-        with open(path,"r",encoding="utf-8") as f:
+        if not os.path.exists(path):
+            return (False, 1e9, "", "Không tìm thấy file heartbeat")
+
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        status = str(data.get("status", "")).lower()
-        try:
-            ts = float(data.get("timestamp", 0))
-        except:
-            ts = 0.0
+
+        status = data.get("status", "")
+        ts = float(data.get("timestamp", 0))
         user = data.get("user", "")
         age = time.time() - ts
-        online = (status == "online" and age <= 60)
-        return (online, age, user)
-    except:
-        return (False, 1e9, "")
+
+        if status.lower() != "online":
+            return (False, age, user, "Status khác 'online'")
+        if abs(age) > 60:
+            return (False, age, user, f"Heartbeat quá cũ ({age:.0f}s)")
+        return (True, age, user, "OK")
+    except Exception as e:
+        return (False, 1e9, "", f"Lỗi đọc JSON: {e}")
 
 # ============ Webhook ============
 def set_webhook(url, user_id=""):
@@ -322,15 +327,15 @@ def auto_rejoin():
         while True:
             for pkg, username in accounts:
                 hb_file = os.path.join(reconnect_dir, f"reconnect_status_{username}.json")
-                online, age, uname = read_heartbeat(hb_file)
+                online, age, uname, reason = read_heartbeat(hb_file)
                 if online:
                     msg(f"[✓] {username} online (age={age:.0f}s)", "ok")
                 else:
-                    msg(f"[*] {username} offline (age={age:.0f}s) → rejoin {pkg}", "err")
+                    msg(f"[*] {username} OFFLINE → {reason} → rejoin {pkg}", "err")
                     kill_roblox_process(pkg)
                     link = links.get(pkg, "")
                     launch_roblox(pkg, link)
-                    send_webhook(f"{username} offline → rejoined {pkg}")
+                    send_webhook(f"{username} OFFLINE ({reason}) → rejoined {pkg}")
                 time.sleep(5)
             time.sleep(200)
     except KeyboardInterrupt:
