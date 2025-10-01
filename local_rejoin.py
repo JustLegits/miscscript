@@ -188,7 +188,7 @@ def find_autoexecute_dirs(bases=None):
             continue
         for root, dirs, files in os.walk(base):
             # Nếu có thư mục "Autoexecute" hoặc "Autoexe"
-            for dirname in ["Autoexecute", "Autoexe"]:
+            for dirname in ["Autoexecute", "Autoexec"]:
                 if dirname in dirs:
                     results.append(os.path.join(root, dirname))
     return results
