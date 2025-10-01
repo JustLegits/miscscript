@@ -588,31 +588,44 @@ Chọn loại script:
     wait_back_menu()
 
 # /11: Export, Import Config
+import pyperclip  # pip install pyperclip
+
 def export_import_config():
     print("\n===== EXPORT / IMPORT CONFIG =====")
     print("1. Export config (ghi ra file + copy clipboard)")
-    print("2. Import config (paste JSON từ clipboard hoặc thủ công)")
+    print("2. Import config (paste JSON từ clipboard hoặc file)")
     print("3. Quay lại")
     choice = input("Chọn: ").strip()
 
     if choice == "1":
-        data = {
-            "config": {},
-            "accounts": load_accounts(),
-            "links": load_server_links(),
-            "webhook": get_webhook()
-        }
-        try:
-            if os.path.exists(CONFIG_FILE):
+        data = {}
+
+        # lấy config.json
+        if os.path.exists(CONFIG_FILE):
+            try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     data["config"] = json.load(f)
-        except:
-            pass
+            except:
+                data["config"] = {}
+        else:
+            data["config"] = {}
+
+        # lấy Account.txt
+        data["accounts"] = load_accounts()
+
+        # lấy Private_Link.txt
+        data["links"] = load_server_links()
+
+        # lấy Webhook.txt
+        url, uid = get_webhook()
+        data["webhook"] = {"url": url, "uid": uid}
 
         try:
+            # ghi file localrejoinconfig.json
             with open("localrejoinconfig.json", "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
+            # copy vào clipboard
             json_text = json.dumps(data, indent=2, ensure_ascii=False)
             pyperclip.copy(json_text)
 
@@ -623,35 +636,35 @@ def export_import_config():
         wait_back_menu()
 
     elif choice == "2":
-        pasted = prompt("Dán nội dung JSON (paste rồi Enter):")
+        pasted = prompt("Dán nội dung JSON (hoặc Enter để đọc file localrejoinconfig.json):")
         try:
-            data = json.loads(pasted)
-        except:
-            if os.path.exists("localrejoinconfig.json"):
+            if pasted.strip():
+                data = json.loads(pasted)
+            else:
                 with open("localrejoinconfig.json", "r", encoding="utf-8") as f:
                     data = json.load(f)
-            else:
-                msg("[!] JSON không hợp lệ và không tìm thấy file localrejoinconfig.json", "err")
-                wait_back_menu()
-                return
+        except Exception as e:
+            msg(f"[!] JSON không hợp lệ: {e}", "err")
+            wait_back_menu()
+            return
 
         try:
-            # config.json
+            # ghi config.json
             if "config" in data:
                 with open(CONFIG_FILE, "w", encoding="utf-8") as f:
                     json.dump(data["config"], f, indent=2, ensure_ascii=False)
 
-            # accounts
+            # ghi Account.txt
             if "accounts" in data:
                 save_accounts(data["accounts"])
 
-            # links
+            # ghi Private_Link.txt
             if "links" in data:
                 save_server_links(data["links"])
 
-            # webhook
-            if "webhook" in data and isinstance(data["webhook"], (list, tuple)):
-                set_webhook(data["webhook"][0], data["webhook"][1] if len(data["webhook"]) > 1 else "")
+            # ghi Webhook.txt
+            if "webhook" in data and isinstance(data["webhook"], dict):
+                set_webhook(data["webhook"].get("url", ""), data["webhook"].get("uid", ""))
 
             msg("[✓] Đã import config thành công!", "ok")
         except Exception as e:
