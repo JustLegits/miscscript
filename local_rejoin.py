@@ -589,57 +589,71 @@ Chọn loại script:
 
 # /11: Export, Import Config
 def export_import_config():
-    print("\n===== CONFIG MANAGER =====")
-    print("1. Export (copy JSON vào clipboard)")
-    print("2. Import (paste JSON từ clipboard hoặc nhập tay)")
+    print("\n===== EXPORT / IMPORT CONFIG =====")
+    print("1. Export config (ghi ra file + copy clipboard)")
+    print("2. Import config (paste JSON từ clipboard hoặc thủ công)")
     print("3. Quay lại")
     choice = input("Chọn: ").strip()
 
-    if choice == "1":  # Export
+    if choice == "1":
+        data = {
+            "config": {},
+            "accounts": load_accounts(),
+            "links": load_server_links(),
+            "webhook": get_webhook()
+        }
         try:
-            data = {
-                "config": load_config(),
-                "accounts": load_accounts(),
-                "server_links": load_server_links(),
-                "webhook": get_webhook(),
-            }
-            json_text = json.dumps(data, ensure_ascii=False, indent=2)
-            pyperclip.copy(json_text)  # copy vào clipboard
-            print("\n[✓] Đã export config (JSON đã copy vào clipboard).")
-            print("----- Nội dung JSON -----")
-            print(json_text)
-            print("-------------------------")
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                    data["config"] = json.load(f)
+        except:
+            pass
+
+        try:
+            with open("localrejoinconfig.json", "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+
+            json_text = json.dumps(data, indent=2, ensure_ascii=False)
+            pyperclip.copy(json_text)
+
+            msg("[✓] Đã export config → localrejoinconfig.json (và copy clipboard)", "ok")
         except Exception as e:
             msg(f"[!] Lỗi export: {e}", "err")
+
         wait_back_menu()
 
-    elif choice == "2":  # Import
-        print("Dán nội dung JSON (kết thúc bằng dòng trống):")
-        lines = []
-        while True:
-            line = input()
-            if not line.strip():
-                break
-            lines.append(line)
-        json_text = "\n".join(lines).strip()
-
-        # Nếu user không nhập gì → thử lấy từ clipboard
-        if not json_text:
-            try:
-                json_text = pyperclip.paste().strip()
-                print("[i] Đang lấy JSON từ clipboard...")
-            except:
-                msg("[!] Không có dữ liệu JSON để import", "err")
+    elif choice == "2":
+        pasted = prompt("Dán nội dung JSON (paste rồi Enter):")
+        try:
+            data = json.loads(pasted)
+        except:
+            if os.path.exists("localrejoinconfig.json"):
+                with open("localrejoinconfig.json", "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            else:
+                msg("[!] JSON không hợp lệ và không tìm thấy file localrejoinconfig.json", "err")
+                wait_back_menu()
                 return
 
         try:
-            data = json.loads(json_text)
-            save_config(data.get("config", {}))
-            save_accounts(data.get("accounts", []))
-            save_server_links(data.get("server_links", []))
-            webhook_url, webhook_uid = data.get("webhook", ("", ""))
-            set_webhook(webhook_url, webhook_uid)
-            msg("[✓] Đã import config thành công.", "ok")
+            # config.json
+            if "config" in data:
+                with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                    json.dump(data["config"], f, indent=2, ensure_ascii=False)
+
+            # accounts
+            if "accounts" in data:
+                save_accounts(data["accounts"])
+
+            # links
+            if "links" in data:
+                save_server_links(data["links"])
+
+            # webhook
+            if "webhook" in data and isinstance(data["webhook"], (list, tuple)):
+                set_webhook(data["webhook"][0], data["webhook"][1] if len(data["webhook"]) > 1 else "")
+
+            msg("[✓] Đã import config thành công!", "ok")
         except Exception as e:
             msg(f"[!] Lỗi import: {e}", "err")
 
