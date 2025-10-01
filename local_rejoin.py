@@ -587,6 +587,118 @@ Chọn loại script:
     print(Fore.LIGHTGREEN_EX + f"Đã lưu script vào {filename}")
     wait_back_menu()
 
+# /11: Export, Import Config
+def export_import_config():
+    print("\n===== CONFIG MANAGER =====")
+    print("1. Export (copy JSON vào clipboard)")
+    print("2. Import (paste JSON từ clipboard hoặc nhập tay)")
+    print("3. Quay lại")
+    choice = input("Chọn: ").strip()
+
+    if choice == "1":  # Export
+        try:
+            data = {
+                "config": load_config(),
+                "accounts": load_accounts(),
+                "server_links": load_server_links(),
+                "webhook": get_webhook(),
+            }
+            json_text = json.dumps(data, ensure_ascii=False, indent=2)
+            pyperclip.copy(json_text)  # copy vào clipboard
+            print("\n[✓] Đã export config (JSON đã copy vào clipboard).")
+            print("----- Nội dung JSON -----")
+            print(json_text)
+            print("-------------------------")
+        except Exception as e:
+            msg(f"[!] Lỗi export: {e}", "err")
+        wait_back_menu()
+
+    elif choice == "2":  # Import
+        print("Dán nội dung JSON (kết thúc bằng dòng trống):")
+        lines = []
+        while True:
+            line = input()
+            if not line.strip():
+                break
+            lines.append(line)
+        json_text = "\n".join(lines).strip()
+
+        # Nếu user không nhập gì → thử lấy từ clipboard
+        if not json_text:
+            try:
+                json_text = pyperclip.paste().strip()
+                print("[i] Đang lấy JSON từ clipboard...")
+            except:
+                msg("[!] Không có dữ liệu JSON để import", "err")
+                return
+
+        try:
+            data = json.loads(json_text)
+            save_config(data.get("config", {}))
+            save_accounts(data.get("accounts", []))
+            save_server_links(data.get("server_links", []))
+            webhook_url, webhook_uid = data.get("webhook", ("", ""))
+            set_webhook(webhook_url, webhook_uid)
+            msg("[✓] Đã import config thành công.", "ok")
+        except Exception as e:
+            msg(f"[!] Lỗi import: {e}", "err")
+
+        wait_back_menu()
+
+    elif choice == "3":
+        return
+    else:
+        msg("[!] Lựa chọn không hợp lệ.", "err")
+
+# /12: Tắt bật auto startup tool
+def manage_startup():
+    startup_dir = os.path.expanduser("~/.termux/boot")
+    startup_file = os.path.join(startup_dir, "startup.sh")
+
+    print("\n===== STARTUP AUTO =====")
+    print("1. Bật auto start khi khởi động máy")
+    print("2. Tắt auto start")
+    print("3. Quay lại")
+    choice = input("Chọn: ").strip()
+
+    if choice == "1":
+        try:
+            os.makedirs(startup_dir, exist_ok=True)
+            script_content = """#!/data/data/com.termux/files/usr/bin/bash
+# đợi 20s cho hệ thống khởi động xong
+sleep 20
+
+# chạy local_rejoin.py với quyền root
+su -c "export PATH=$PATH:/data/data/com.termux/files/usr/bin && \
+       export TERM=xterm-256color && \
+       cd /sdcard/Download && \
+       python local_rejoin.py --auto" >> ~/local_rejoin.log 2>&1
+"""
+            with open(startup_file, "w", encoding="utf-8") as f:
+                f.write(script_content)
+
+            os.chmod(startup_file, 0o755)
+            print(Fore.LIGHTGREEN_EX + f"[✓] Đã bật auto start. File: {startup_file}")
+        except Exception as e:
+            print(Fore.LIGHTRED_EX + f"[!] Lỗi khi bật startup: {e}")
+        wait_back_menu()
+
+    elif choice == "2":
+        try:
+            if os.path.exists(startup_file):
+                os.remove(startup_file)
+                print(Fore.LIGHTGREEN_EX + "[✓] Đã tắt auto start.")
+            else:
+                print(Fore.LIGHTYELLOW_EX + "[i] Startup chưa được bật hoặc file không tồn tại.")
+        except Exception as e:
+            print(Fore.LIGHTRED_EX + f"[!] Lỗi khi tắt startup: {e}")
+        wait_back_menu()
+
+    elif choice == "3":
+        return
+    else:
+        msg("[!] Lựa chọn không hợp lệ.", "err")
+
 # ============ Menu ============
 def menu():
     while True:
@@ -600,9 +712,11 @@ def menu():
 6 Thiết lập webhook Discord
 7 Tự động tìm User ID từ appStorage.json
 8 Xem danh sách đã lưu
-9 Tối ưu máy
-10 Thêm script vào auto execute
-11 Thoát tool
+9 Tối ưu máy, thay AndroidID, Tắt Animation
+10 Thêm script vào Auto Execute
+11 Export, Import Config
+12 Quản lý Startup Auto
+13 Thoát tool
 ======================
 """)
         choice = input("Chọn: ").strip()
@@ -627,6 +741,10 @@ def menu():
         elif choice == "10":
             add_autoexecute_script()
         elif choice == "11":
+            export_import_config()
+        elif choice == "12":
+            manage_startup()
+        elif choice == "13":
             break
         else:
             msg("[!] Lựa chọn không hợp lệ.", "err")
