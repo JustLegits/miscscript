@@ -678,7 +678,8 @@ def export_import_config():
 
 # /12: Tắt bật auto startup tool
 def manage_startup():
-    startup_dir = os.path.expanduser("~/.termux/boot")
+    # dùng absolute path vì khi chạy dưới su thì ~ sẽ thành /root
+    startup_dir = "/data/data/com.termux/files/home/.termux/boot"
     startup_file = os.path.join(startup_dir, "startup.sh")
 
     print("\n===== STARTUP AUTO =====")
