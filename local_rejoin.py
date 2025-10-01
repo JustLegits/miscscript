@@ -623,10 +623,9 @@ def export_import_config():
         try:
             # ghi file localrejoinconfig.json
             with open("localrejoinconfig.json", "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-
-            # copy vào clipboard
-            json_text = json.dumps(data, indent=2, ensure_ascii=False)
+                json.dump(data, f, ensure_ascii=False)  # không indent -> 1 dòng
+            
+            json_text = json.dumps(data, ensure_ascii=False)  # cũng 1 dòng
             pyperclip.copy(json_text)
 
             msg("[✓] Đã export config → localrejoinconfig.json (và copy clipboard)", "ok")
