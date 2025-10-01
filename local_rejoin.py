@@ -140,8 +140,10 @@ def launch_roblox(package, server_link):
 def load_config():
     if os.path.exists(CONFIG_FILE):
         try:
-            return json.load(open(CONFIG_FILE,"r",encoding="utf-8"))
-        except: pass
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
     return {}
 
 def save_config(cfg):
@@ -192,12 +194,16 @@ def find_autoexecute_dirs(bases=None):
 # ============ Heartbeat ============
 def read_heartbeat(path):
     try:
-        data = json.load(open(path,"r",encoding="utf-8"))
-        status = data.get("status", "")
-        ts = float(data.get("timestamp", 0))
+        with open(path,"r",encoding="utf-8") as f:
+            data = json.load(f)
+        status = str(data.get("status", "")).lower()
+        try:
+            ts = float(data.get("timestamp", 0))
+        except:
+            ts = 0.0
         user = data.get("user", "")
         age = time.time() - ts
-        online = (status.lower() == "online" and abs(age) <= 60)
+        online = (status == "online" and age <= 60)
         return (online, age, user)
     except:
         return (False, 1e9, "")
@@ -447,30 +453,36 @@ def find_uid_from_appstorage():
     for pkg in pkgs:
         fpath = f'/data/data/{pkg}/files/appData/LocalStorage/appStorage.json'
         try:
-            data = json.load(open(fpath,"r",encoding="utf-8"))
-            uid = str(data.get("UserId",""))
+            with open(fpath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            uid = str(data.get("UserId", ""))
         except:
             uid = ""
+
         username = ""
         if uid:
             try:
                 r = requests.get(f"https://users.roblox.com/v1/users/{uid}", timeout=5)
-                if r.status_code==200:
-                    username = r.json().get("name","")
-            except: pass
+                if r.status_code == 200:
+                    username = r.json().get("name", "")
+            except:
+                pass
+
         if username:
             accounts.append((pkg, username))
             msg(f"Tìm thấy username {username} cho {pkg}", "ok")
         else:
             msg(f"Không tìm thấy UID/username cho {pkg}", "err")
+
     if accounts:
         save_accounts(accounts)
         msg("[i] Đã lưu username từ appStorage.", "ok")
         link = prompt("Nhập link chung cho các package:")
         formatted = format_server_link(link)
         if formatted:
-            save_server_links([(pkg, formatted) for pkg,_ in accounts])
+            save_server_links([(pkg, formatted) for pkg, _ in accounts])
             msg("[i] Đã lưu link cho appStorage.", "ok")
+
     wait_back_menu()
 
 # /8: xem danh sách
