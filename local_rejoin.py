@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os, time, json, subprocess, requests, sys
+import os, time, json, subprocess, requests, sys, pyperclip
 from colorama import Fore, Style, init
 init(autoreset=True)
 
