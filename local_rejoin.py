@@ -187,8 +187,10 @@ def find_autoexecute_dirs(bases=None):
         if not os.path.exists(base):
             continue
         for root, dirs, files in os.walk(base):
-            if "Autoexecute" in dirs:
-                results.append(os.path.join(root, "Autoexecute"))
+            # Nếu có thư mục "Autoexecute" hoặc "Autoexe"
+            for dirname in ["Autoexecute", "Autoexe"]:
+                if dirname in dirs:
+                    results.append(os.path.join(root, dirname))
     return results
 
 # ============ Heartbeat ============
