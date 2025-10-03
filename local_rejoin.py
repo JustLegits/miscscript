@@ -86,17 +86,142 @@ def get_custom_packages():
             pkgs.append(pkg)
     return pkgs
 
-def kill_roblox_process(package):
+def _is_process_running_by_pidof(pkg):
     try:
-        subprocess.run(
-            ["am", "force-stop", package],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        print(f"[✓] Đã force-stop {package}")
-        time.sleep(3)
+        r = subprocess.run(["pidof", pkg], capture_output=True, text=True)
+        out = (r.stdout or "").strip()
+        return bool(out), out.strip().split() if out else []
+    except Exception:
+        return False, []
+
+def _get_pids_by_ps(pkg):
+    try:
+        r = subprocess.run(["ps"], capture_output=True, text=True)
+        lines = (r.stdout or "").splitlines()
+        if not lines:
+            return []
+        header = lines[0].split()
+        # try detect PID column
+        pid_idx = None
+        for idx, col in enumerate(header):
+            if col.upper() == "PID":
+                pid_idx = idx
+                break
+        if pid_idx is None:
+            pid_idx = 1  # fallback common position
+
+        pids = []
+        for ln in lines[1:]:
+            parts = ln.split()
+            if len(parts) <= pid_idx:
+                continue
+            pid = parts[pid_idx]
+            # process name typically last column
+            proc_name = parts[-1]
+            # match exact package or child process like "package:xxxx"
+            if proc_name == pkg or proc_name.startswith(pkg + ":"):
+                try:
+                    pids.append(int(pid))
+                except:
+                    pass
+        return pids
+    except Exception:
+        return []
+
+def _kill_pid(pid):
+    try:
+        os.kill(int(pid), 9)
+        return True
+    except PermissionError:
+        # try with su if available
+        try:
+            subprocess.run(["su","-c", f"kill -9 {pid}"], check=True)
+            return True
+        except Exception:
+            return False
+    except Exception:
+        return False
+
+def kill_roblox_process(package):
+    """
+    Thứ tự hành động:
+    1) Thử /system/bin/am force-stop
+    2) Nếu vẫn còn tiến trình -> thử 'am force-stop' (khác path)
+    3) Kiểm tra pid bằng pidof hoặc ps, kill từng PID bằng os.kill (hoặc su -c kill -9)
+    """
+    try:
+        msg(f"[*] Dừng {package}...")
+
+        # 1) try /system/bin/am
+        for am_cmd in ["/system/bin/am", "am"]:
+            try:
+                subprocess.run([am_cmd, "force-stop", package],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception:
+                # nếu không tìm thấy am_cmd hay lỗi thì bỏ qua
+                pass
+
+        time.sleep(1)
+
+        # 2) kiểm tra nhanh bằng pidof
+        running, pids_out = _is_process_running_by_pidof(package)
+        if not running:
+            msg(f"[✓] {package} đã dừng (force-stop thành công).")
+            return True
+
+        # 3) nếu pidof trả PID thì kill từng PID
+        pids = []
+        if pids_out:
+            for p in pids_out:
+                try:
+                    pids.append(int(p))
+                except:
+                    pass
+
+        # 4) nếu pidof không trả PID hoặc vẫn còn running, fallback đọc ps
+        if not pids:
+            pids = _get_pids_by_ps(package)
+
+        if not pids:
+            # không tìm thấy PID nhưng pidof/ps báo running -> log và thử force-stop lần nữa
+            msg(f"[!] Không tìm thấy PID trực tiếp cho {package} — thử force-stop thêm lần nữa.")
+            try:
+                subprocess.run(["/system/bin/am", "force-stop", package], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(["am", "force-stop", package], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except:
+                pass
+            time.sleep(1)
+            running2, _ = _is_process_running_by_pidof(package)
+            if not running2:
+                msg(f"[✓] {package} đã dừng sau lần thử bổ sung.")
+                return True
+            else:
+                msg(f"[!] {package} vẫn chạy nhưng không tìm thấy PID. Có thể là process system/protected.")
+                return False
+
+        # 5) kill từng PID tìm được
+        killed_any = False
+        for pid in pids:
+            ok = _kill_pid(pid)
+            if ok:
+                msg(f"[*] Đã kill PID {pid} của {package}.")
+                killed_any = True
+            else:
+                msg(f"[!] Không thể kill PID {pid} của {package} (quyền hạn?).")
+
+        time.sleep(1)
+        # 6) kiểm tra lại
+        running_final, _ = _is_process_running_by_pidof(package)
+        if not running_final:
+            msg(f"[✓] {package} đã dừng (sau kill).")
+            return True
+        else:
+            msg(f"[!] {package} vẫn chạy sau các biện pháp. Có thể do watchdog/restart tự động hoặc process protected.")
+            return False
+
     except Exception as e:
         msg(f"[!] Lỗi khi dừng {package}: {e}", "err")
+        return False
 
 def format_server_link(link):
     link = link.strip()
