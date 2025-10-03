@@ -88,22 +88,16 @@ def get_custom_packages():
 
 def kill_roblox_process(package):
     try:
-        # tìm PID từ package
-        result = subprocess.run(["pidof", package], capture_output=True, text=True)
-        pids = result.stdout.strip().split()
-
-        if not pids or pids == ['']:
-            print(f"[!] Không tìm thấy PID cho {package}")
-            return
-
-        for pid in pids:
-            subprocess.run(["kill", "-9", pid])
-            print(f"[✓] Đã kill {package} (PID {pid})")
-
+        subprocess.run(
+            ["am", "force-stop", package],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True
+        )
+        msg(f"[*] Đã force-stop {package}", "ok")
         time.sleep(2)
-
     except Exception as e:
-        print(f"[!] Lỗi khi kill {package}: {e}")
+        msg(f"[!] Lỗi khi dừng {package}: {e}", "err")
 
 def format_server_link(link):
     link = link.strip()
