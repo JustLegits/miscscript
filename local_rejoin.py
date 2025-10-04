@@ -87,17 +87,8 @@ def get_custom_packages():
     return pkgs
 
 def kill_roblox_process(package):
-    try:
-        subprocess.run(
-            ["am", "force-stop", package],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=True
-        )
-        msg(f"[*] Đã force-stop {package}", "ok")
-        time.sleep(2)
-    except Exception as e:
-        msg(f"[!] Lỗi khi dừng {package}: {e}", "err")
+    subprocess.run(["pkill", "-f", package])
+    time.sleep(2)
 
 def format_server_link(link):
     link = link.strip()
