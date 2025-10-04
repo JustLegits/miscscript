@@ -18,8 +18,12 @@ def msg(text, type="info"):
 def prompt(text):
     return input(text+" ").strip()
 
+def clear():
+    os.system("clear" if os.name == "posix" else "cls")
+
 def wait_back_menu():
     input("[Nhấn Enter để quay lại menu]")
+    os.system("clear")
  
 def run_cmd(cmd, check_success=True):
     try:
@@ -312,6 +316,8 @@ def auto_rejoin():
     msg("[i] Bắt đầu auto rejoin local...")
     try:
         while True:
+            clear()
+            msg("[i] Bắt đầu vòng check mới...", "info")
             for pkg, username in accounts:
                 hb_file = os.path.join(reconnect_dir, f"reconnect_status_{username}.json")
                 online, age, uname, reason = read_heartbeat(hb_file)
@@ -721,6 +727,7 @@ su -c "export PATH=$PATH:/data/data/com.termux/files/usr/bin && \
 # ============ Menu ============
 def menu():
     while True:
+        clear()
         print("""
 ======== MENU ========
 1 Auto rejoin
