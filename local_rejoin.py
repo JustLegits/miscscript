@@ -87,7 +87,11 @@ def get_custom_packages():
     return pkgs
 
 def kill_roblox_process(package):
-    subprocess.run(["pkill", "-f", package])
+    try:
+        subprocess.run(["pkill", "-f", package], check=False)
+        print(f"[✓] Đã kill {package}")
+    except Exception as e:
+        print(f"[!] Lỗi khi kill {package}: {e}")
     time.sleep(2)
 
 def format_server_link(link):
