@@ -1,8 +1,9 @@
 --[[
-    Script: Auto Teleport
+    Script Cải Tiến: Auto Teleport v3
     - GUI Bật/Tắt
     - Tùy chỉnh giây teleport
     - Nút Lưu và Xóa Vị Trí
+    - Tự động lưu và tải cấu hình (Giây, Bật/Tắt)
 ]]
 
 -- Dịch vụ và Biến
@@ -11,6 +12,7 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 local fileName = "SavedPosition.json"
+local configFileName = "TeleportConfig.json" -- MỚI: File để lưu cài đặt
 local savedPos = nil
 local isTeleporting = false
 local teleportThread = nil
@@ -31,7 +33,7 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TeleportGUI"
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.ResetOnSpawn = false -- Giữ GUI khi chết
+ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -50,7 +52,7 @@ TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 TitleLabel.BorderColor3 = Color3.fromRGB(150, 150, 150)
 TitleLabel.Size = UDim2.new(1, 0, 0, 30)
 TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.Text = "Auto Teleport"
+TitleLabel.Text = "Auto Teleport v3" -- MỚI: Cập nhật tiêu đề
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 18
 
@@ -116,6 +118,17 @@ DeleteButton.TextSize = 16
 -- CHỨC NĂNG SCRIPT
 -- ===================================================================
 
+-- --- MỚI: Hàm lưu cài đặt (Giây, Bật/Tắt) ---
+local function saveConfig()
+    local configTable = {
+        interval = tonumber(IntervalBox.Text) or 1,
+        autoStart = isTeleporting
+    }
+    local encoded = HttpService:JSONEncode(configTable)
+    writefile(configFileName, encoded)
+    warn(":floppy_disk: Đã lưu cấu hình (Bật: " .. tostring(isTeleporting) .. ", Giây: " .. configTable.interval .. ")")
+end
+
 -- Hàm tải vị trí
 local function loadPosition()
     local success, result = pcall(function()
@@ -155,6 +168,7 @@ ToggleButton.MouseButton1Click:Connect(function()
         if not savedPos then
             warn(":x: Không có vị trí để teleport! Vui lòng 'Lưu Vị Trí' trước.")
             isTeleporting = false -- Tắt lại
+            saveConfig() -- MỚI: Lưu trạng thái TẮT vì không thành công
             return
         end
 
@@ -175,7 +189,6 @@ ToggleButton.MouseButton1Click:Connect(function()
                 if player.Character and hrp then
                     hrp.CFrame = CFrame.new(savedPos)
                 else
-                    -- Nếu người chơi chết, lấy lại HRP
                     warn("Đang chờ nhân vật...")
                     hrp = getHRP()
                     if hrp then
@@ -189,11 +202,13 @@ ToggleButton.MouseButton1Click:Connect(function()
         -- DỪNG
         stopTeleporting()
     end
+    
+    saveConfig() -- MỚI: Lưu trạng thái BẬT hoặc TẮT mỗi khi nhấn nút
 end)
 
 -- Nút LƯU VỊ TRÍ
 SetButton.MouseButton1Click:Connect(function()
-    hrp = getHRP() -- Đảm bảo chúng ta có HRP mới nhất
+    hrp = getHRP()
     local currentPos = hrp.Position
     local posTable = {
         x = currentPos.X,
@@ -204,19 +219,20 @@ SetButton.MouseButton1Click:Connect(function()
     local encoded = HttpService:JSONEncode(posTable)
     writefile(fileName, encoded)
     
-    savedPos = currentPos -- Cập nhật vị trí đã lưu trong script
+    savedPos = currentPos
     warn(":pushpin: Vị trí MỚI đã được lưu:", currentPos)
 end)
 
--- Nút XÓA VỊ TRÍ (script của bạn)
+-- Nút XÓA VỊ TRÍ
 DeleteButton.MouseButton1Click:Connect(function()
     if isfile(fileName) then
-        delfile(fileName)
-        savedPos = nil -- Xóa vị trí đã lưu trong script
+        dile(fileName)
+        savedPos = nil
         warn(":wastebasket: Đã xóa file lưu vị trí:", fileName)
         
         if isTeleporting then
             stopTeleporting()
+            saveConfig() -- MỚI: Lưu trạng thái TẮT
             warn("Đã tự động tắt teleport vì file bị xóa.")
         end
     else
@@ -224,13 +240,45 @@ DeleteButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Tải vị trí đã lưu (nếu có) khi script bắt đầu
+-- --- MỚI: Hàm tải cài đặt (Giây, Bật/Tắt) ---
+local function loadConfig()
+    local success, result = pcall(function()
+        if isfile(configFileName) then
+            return HttpService:JSONDecode(readfile(configFileName))
+        end
+        return nil
+    end)
+
+    if success and result and result.interval then
+        IntervalBox.Text = tostring(result.interval) -- Tải số giây vào TextBox
+        warn(":floppy_disk: Đã tải cấu hình: Giây = " .. result.interval)
+        
+        if result.autoStart == true then
+            warn("... Tự động BẬT theo cấu hình đã lưu.")
+            -- Chờ một chút để script (đặc biệt là loadPosition) ổn định
+            task.wait(0.2) 
+            -- Tự động nhấn nút BẬT/TẮT để kích hoạt
+            ToggleButton.MouseButton1Click:Fire()
+        end
+    else
+        warn(":card_box: Không tìm thấy file config, dùng mặc định.")
+    end
+end
+
+
+-- ===================================================================
+-- KHỞI CHẠY SCRIPT
+-- ===================================================================
+
+-- 1. Tải vị trí đã lưu (nếu có) khi script bắt đầu
 loadPosition()
 
--- Dọn dẹp GUI khi người chơi rời đi
+-- 2. Tải cài đặt (nếu có) và tự động bật nếu được cài
+loadConfig() -- MỚI: Gọi hàm tải config
+
+-- Dọn dẹp
 player.CharacterRemoving:Connect(function()
     if teleportThread then
         task.cancel(teleportThread)
     end
-    -- Không hủy GUI nếu ResetOnSpawn = false
 end)
