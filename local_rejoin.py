@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os, time, json, subprocess, requests, sys, pyperclip
+import os, time, json, subprocess, requests, sys
 from colorama import Fore, Style, init
 init(autoreset=True)
 
@@ -586,12 +586,12 @@ Chọn loại script:
     wait_back_menu()
 
 # /11: Export, Import Config
-import pyperclip  # pip install pyperclip
+# import pyperclip  # pip install pyperclip <-- Không cần thiết cho chức năng này nữa
 
 def export_import_config():
     print("\n===== EXPORT / IMPORT CONFIG =====")
-    print("1. Export config (ghi ra file + copy clipboard)")
-    print("2. Import config (paste JSON từ clipboard hoặc file)")
+    print("1. Export config (ghi ra file + gửi lên webhook)")
+    print("2. Import config (nhập JSON, link URL, hoặc file)")
     print("3. Quay lại")
     choice = input("Chọn: ").strip()
 
@@ -619,53 +619,107 @@ def export_import_config():
         data["webhook"] = {"url": url, "uid": uid}
 
         try:
-            # ghi file localrejoinconfig.json
+            # Vẫn ghi file local để backup
+            json_text = json.dumps(data, ensure_ascii=False)
             with open("localrejoinconfig.json", "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False)  # không indent -> 1 dòng
+                f.write(json_text)
             
-            json_text = json.dumps(data, ensure_ascii=False)  # cũng 1 dòng
-            pyperclip.copy(json_text)
+            msg("[✓] Đã export config → localrejoinconfig.json", "ok")
 
-            msg("[✓] Đã export config → localrejoinconfig.json (và copy clipboard)", "ok")
+            # Gửi file config lên webhook
+            if not url:
+                msg("[!] Không tìm thấy webhook URL để gửi. Chỉ export ra file.", "err")
+            else:
+                msg("[i] Đang gửi config backup lên webhook...", "info")
+                try:
+                    # Gửi file json dưới dạng file đính kèm
+                    files = {
+                        'file': ('localrejoinconfig.json', json_text, 'application/json')
+                    }
+                    payload_json = {
+                        "content": f"Backup config từ tool localrejoin. User: <@{uid}>" if uid else "Backup config từ tool localrejoin."
+                    }
+                    r = requests.post(url, files=files, data={"payload_json": json.dumps(payload_json)}, timeout=10)
+                    
+                    if 200 <= r.status_code < 300:
+                        msg("[✓] Đã gửi config backup lên webhook thành công.", "ok")
+                    else:
+                        msg(f"[!] Gửi webhook thất bại. Status: {r.status_code}, Response: {r.text}", "err")
+                except Exception as e:
+                    msg(f"[!] Lỗi khi gửi config lên webhook: {e}", "err")
+
         except Exception as e:
             msg(f"[!] Lỗi export: {e}", "err")
 
         wait_back_menu()
 
     elif choice == "2":
-        pasted = prompt("Dán nội dung JSON (hoặc Enter để đọc file localrejoinconfig.json):")
+        pasted = prompt("Dán JSON, nhập URL, hoặc Enter để đọc file localrejoinconfig.json:")
+        data = None
+        
         try:
-            if pasted.strip():
-                data = json.loads(pasted)
-            else:
+            pasted = pasted.strip()
+            if not pasted:
+                # 1. Nhấn Enter -> Đọc file local
                 with open("localrejoinconfig.json", "r", encoding="utf-8") as f:
                     data = json.load(f)
+                msg("[i] Đã đọc config từ localrejoinconfig.json", "info")
+            
+            elif pasted.startswith("http://") or pasted.startswith("https://"):
+                # 2. Nhập URL -> Tải từ link
+                try:
+                    msg("[i] Đang tải config từ URL...", "info")
+                    r = requests.get(pasted, timeout=10)
+                    r.raise_for_status()  # Báo lỗi nếu status code không phải 2xx
+                    data = r.json()
+                    msg("[✓] Tải và phân tích JSON từ URL thành công.", "ok")
+                except requests.exceptions.RequestException as req_e:
+                    msg(f"[!] Lỗi khi tải URL: {req_e}", "err")
+                    wait_back_menu()
+                    return
+                except json.JSONDecodeError as json_e:
+                    msg(f"[!] Nội dung từ URL không phải JSON hợp lệ: {json_e}", "err")
+                    wait_back_menu()
+                    return
+            
+            elif pasted.startswith("{") and pasted.endswith("}"):
+                # 3. Dán JSON -> Đọc trực tiếp
+                data = json.loads(pasted)
+                msg("[i] Đã phân tích JSON được dán vào.", "info")
+            
+            else:
+                msg("[!] Đầu vào không hợp lệ. Không phải URL, JSON, hoặc để trống.", "err")
+                wait_back_menu()
+                return
+
         except Exception as e:
-            msg(f"[!] JSON không hợp lệ: {e}", "err")
+            msg(f"[!] Lỗi phân tích JSON hoặc đọc file: {e}", "err")
             wait_back_menu()
             return
 
+        if data is None:
+            msg("[!] Không thể tải dữ liệu config.", "err")
+            wait_back_menu()
+            return
+            
         try:
-            # ghi config.json
+            # Ghi config (giữ nguyên logic cũ)
             if "config" in data:
                 with open(CONFIG_FILE, "w", encoding="utf-8") as f:
                     json.dump(data["config"], f, indent=2, ensure_ascii=False)
 
-            # ghi Account.txt
             if "accounts" in data:
                 save_accounts(data["accounts"])
 
-            # ghi Private_Link.txt
             if "links" in data:
                 save_server_links(data["links"])
 
-            # ghi Webhook.txt
             if "webhook" in data and isinstance(data["webhook"], dict):
                 set_webhook(data["webhook"].get("url", ""), data["webhook"].get("uid", ""))
 
             msg("[✓] Đã import config thành công!", "ok")
         except Exception as e:
-            msg(f"[!] Lỗi import: {e}", "err")
+            msg(f"[!] Lỗi khi import dữ liệu: {e}", "err")
 
         wait_back_menu()
 
