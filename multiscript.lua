@@ -1,197 +1,367 @@
-repeat wait() until game:IsLoaded() and game.Players.LocalPlayer
+-- Script: Script Manager GUI (local client, full version)
+-- Features:
+-- ✅ Dropdown chọn player
+-- ✅ Dropdown chọn Script 1 – Script 5
+-- ✅ Mỗi preset lưu riêng
+-- ✅ Run Script button
+-- ✅ Auto-run nếu script trùng player
+-- ✅ Chỉ localplayer mới save script cho mình
+-- ✅ Hoạt động độc lập 100% (file hoàn chỉnh)
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
---------------------------------------------------------------------------------
--- GUI
---------------------------------------------------------------------------------
+local configFileName = "ScriptManagerConfig.json"
+local config = {}
+
+-- ============================
+-- Load Config
+-- ============================
+local function safeReadConfig()
+    local ok, data = pcall(function()
+        if isfile and isfile(configFileName) then
+            return HttpService:JSONDecode(readfile(configFileName))
+        end
+        return { scripts = {}, autoRun = true }
+    end)
+    if ok and type(data) == "table" then
+        return data
+    else
+        return { scripts = {}, autoRun = true }
+    end
+end
+
+local function safeWriteConfig()
+    pcall(function()
+        if writefile then
+            writefile(configFileName, HttpService:JSONEncode(config))
+        end
+    end)
+end
+
+config = safeReadConfig()
+config.scripts = config.scripts or {}
+config.autoRun = config.autoRun ~= false
+
+-- ============================
+-- GUI CREATION
+-- ============================
+repeat task.wait() until game:IsLoaded() and player:FindFirstChild("PlayerGui")
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ScriptManagerGUI"
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
+ScreenGui.Parent = player.PlayerGui
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
-MainFrame.Size = UDim2.new(0, 500, 0, 320)
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -160)
 MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-MainFrame.BorderColor3 = Color3.fromRGB(120, 120, 120)
+MainFrame.BorderColor3 = Color3.fromRGB(150, 150, 150)
+MainFrame.Position = UDim2.new(0.5, -225, 0.5, -150)
+MainFrame.Size = UDim2.new(0, 450, 0, 300)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-Title.BorderColor3 = Color3.fromRGB(120, 120, 120)
-Title.Text = "Local Script Manager"
+Title.Text = "Script Manager"
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 18
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundColor3 = Color3.fromRGB(25,25,35)
+Title.TextColor3 = Color3.fromRGB(255,255,255)
 
+-- LEFT FRAME
 local LeftFrame = Instance.new("Frame")
 LeftFrame.Parent = MainFrame
-LeftFrame.Size = UDim2.new(0, 150, 1, -30)
-LeftFrame.Position = UDim2.new(0, 0, 0, 30)
-LeftFrame.BackgroundColor3 = Color3.fromRGB(45,45,55)
-LeftFrame.BorderColor3 = Color3.fromRGB(100,100,100)
+LeftFrame.Position = UDim2.new(0.02, 0, 0.12, 0)
+LeftFrame.Size = UDim2.new(0.32, 0, 0.8, 0)
+LeftFrame.BackgroundTransparency = 1
 
-local RightFrame = Instance.new("Frame")
-RightFrame.Parent = MainFrame
-RightFrame.Size = UDim2.new(1, -150, 1, -30)
-RightFrame.Position = UDim2.new(0, 150, 0, 30)
-RightFrame.BackgroundColor3 = Color3.fromRGB(50,50,60)
-RightFrame.BorderColor3 = Color3.fromRGB(100,100,100)
+--------------------------------------------------
+-- PLAYER DROPDOWN
+--------------------------------------------------
+local PlayerLabel = Instance.new("TextLabel")
+PlayerLabel.Parent = LeftFrame
+PlayerLabel.Text = "Chọn player:"
+PlayerLabel.Size = UDim2.new(1,0,0,20)
+PlayerLabel.BackgroundTransparency = 1
+PlayerLabel.TextColor3 = Color3.new(1,1,1)
+PlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
 
---------------------------------------------------------------------------------
--- USER DROPDOWN
---------------------------------------------------------------------------------
+local PlayerButton = Instance.new("TextButton")
+PlayerButton.Parent = LeftFrame
+PlayerButton.Position = UDim2.new(0, 0, 0, 26)
+PlayerButton.Size = UDim2.new(1,0,0,30)
+PlayerButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+PlayerButton.TextColor3 = Color3.new(1,1,1)
+PlayerButton.Text = "Chọn..."
 
-local UserLabel = Instance.new("TextLabel")
-UserLabel.Parent = LeftFrame
-UserLabel.Text = "Local User:"
-UserLabel.Size = UDim2.new(1,0,0,25)
-UserLabel.BackgroundTransparency = 1
-UserLabel.TextColor3 = Color3.fromRGB(255,255,255)
-UserLabel.Position = UDim2.new(0,0,0,5)
-UserLabel.TextSize = 14
+local PlayerList = Instance.new("ScrollingFrame")
+PlayerList.Parent = LeftFrame
+PlayerList.Position = UDim2.new(0, 0, 0, 60)
+PlayerList.Size = UDim2.new(1, 0, 0, 100)
+PlayerList.CanvasSize = UDim2.new(0,0,0,0)
+PlayerList.BackgroundColor3 = Color3.fromRGB(45,45,55)
+PlayerList.Visible = false
+PlayerList.ScrollBarThickness = 6
 
-local UsernameDropdown = Instance.new("TextButton")
-UsernameDropdown.Parent = LeftFrame
-UsernameDropdown.Size = UDim2.new(1,0,0,25)
-UsernameDropdown.Position = UDim2.new(0,0,0,30)
-UsernameDropdown.BackgroundColor3 = Color3.fromRGB(60,60,75)
-UsernameDropdown.Text = player.Name
-UsernameDropdown.TextColor3 = Color3.fromRGB(255,255,255)
+local PL_Layout = Instance.new("UIListLayout")
+PL_Layout.Parent = PlayerList
+PL_Layout.SortOrder = Enum.SortOrder.LayoutOrder
+PL_Layout.Padding = UDim.new(0,4)
 
---------------------------------------------------------------------------------
--- SCRIPT PRESET DROPDOWN (5 preset lưu riêng file)
---------------------------------------------------------------------------------
+local selectedName = nil
 
-local PresetLabel = Instance.new("TextLabel")
-PresetLabel.Parent = LeftFrame
-PresetLabel.Text = "Script Preset:"
-PresetLabel.Size = UDim2.new(1,0,0,25)
-PresetLabel.Position = UDim2.new(0,0,0,80)
-PresetLabel.BackgroundTransparency = 1
-PresetLabel.TextColor3 = Color3.fromRGB(255,255,255)
-PresetLabel.TextSize = 14
+local function refreshPlayerList()
+    for _,child in ipairs(PlayerList:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
 
-local PresetDropdown = Instance.new("TextButton")
-PresetDropdown.Parent = LeftFrame
-PresetDropdown.Size = UDim2.new(1,0,0,25)
-PresetDropdown.Position = UDim2.new(0,0,0,105)
-PresetDropdown.BackgroundColor3 = Color3.fromRGB(60,60,75)
-PresetDropdown.Text = "Chọn Script..."
-PresetDropdown.TextColor3 = Color3.fromRGB(255,255,255)
+    local list = Players:GetPlayers()
+    table.sort(list, function(a,b) return a.Name:lower() < b.Name:lower() end)
 
-local PresetMenu = Instance.new("Frame")
-PresetMenu.Parent = LeftFrame
-PresetMenu.Position = UDim2.new(0,0,0,130)
-PresetMenu.Size = UDim2.new(1,0,0,0)
-PresetMenu.BackgroundTransparency = 1
-PresetMenu.Visible = false
+    for _, pl in ipairs(list) do
+        local b = Instance.new("TextButton")
+        b.Parent = PlayerList
+        b.Size = UDim2.new(1,-6,0,26)
+        b.Position = UDim2.new(0,3,0,0)
+        b.Text = pl.Name
+        b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        b.TextColor3 = Color3.new(1,1,1)
 
-local presetList = {"Script 1","Script 2","Script 3","Script 4","Script 5"}
+        b.MouseButton1Click:Connect(function()
+            selectedName = pl.Name
+            PlayerButton.Text = pl.Name
+            PlayerList.Visible = false
 
-PresetDropdown.MouseButton1Click:Connect(function()
-    PresetMenu.Visible = not PresetMenu.Visible
-    PresetMenu.Size = UDim2.new(1,0,0,#presetList * 25)
+            -- load script preset
+            local pdata = config.scripts[selectedName]
+            if pdata and pdata[selectedPreset] then
+                ScriptBox.Text = pdata[selectedPreset]
+            else
+                ScriptBox.Text = "-- Chưa có script cho preset này"
+            end
+        end)
+    end
+
+    PlayerList.CanvasSize = UDim2.new(0,0,0,#list * 30)
+end
+
+PlayerButton.MouseButton1Click:Connect(function()
+    PlayerList.Visible = not PlayerList.Visible
+    if PlayerList.Visible then refreshPlayerList() end
 end)
 
-for _, name in ipairs(presetList) do
-    local btn = Instance.new("TextButton")
-    btn.Parent = PresetMenu
-    btn.Size = UDim2.new(1,0,0,25)
-    btn.BackgroundColor3 = Color3.fromRGB(80,80,95)
-    btn.Text = name
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
+--------------------------------------------------
+-- SCRIPT PRESET DROPDOWN
+--------------------------------------------------
+local PresetLabel = Instance.new("TextLabel")
+PresetLabel.Parent = LeftFrame
+PresetLabel.Position = UDim2.new(0,0,0,100)
+PresetLabel.Size = UDim2.new(1,0,0,20)
+PresetLabel.Text = "Chọn Script:"
+PresetLabel.TextColor3 = Color3.new(1,1,1)
+PresetLabel.BackgroundTransparency = 1
+PresetLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-    btn.MouseButton1Click:Connect(function()
-        PresetDropdown.Text = name
-        PresetMenu.Visible = false
-        loadConfig() -- tự load script của preset đó
+local PresetButton = Instance.new("TextButton")
+PresetButton.Parent = LeftFrame
+PresetButton.Position = UDim2.new(0,0,0,126)
+PresetButton.Size = UDim2.new(1,0,0,30)
+PresetButton.Text = "Script 1"
+PresetButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+PresetButton.TextColor3 = Color3.new(1,1,1)
+
+local PresetList = Instance.new("Frame")
+PresetList.Parent = LeftFrame
+PresetList.Position = UDim2.new(0,0,0,160)
+PresetList.BackgroundColor3 = Color3.fromRGB(45,45,55)
+PresetList.Visible = false
+
+local scriptPresets = {"Script 1","Script 2","Script 3","Script 4","Script 5"}
+local selectedPreset = "Script 1"
+
+local PR_Layout = Instance.new("UIListLayout")
+PR_Layout.Parent = PresetList
+PR_Layout.Padding = UDim.new(0,4)
+PR_Layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+PresetButton.MouseButton1Click:Connect(function()
+    PresetList.Visible = not PresetList.Visible
+    PresetList.Size = UDim2.new(1,0,0,#scriptPresets * 30)
+end)
+
+for _, presetName in ipairs(scriptPresets) do
+    local x = Instance.new("TextButton")
+    x.Parent = PresetList
+    x.Size = UDim2.new(1,-6,0,26)
+    x.Position = UDim2.new(0,3,0,0)
+    x.Text = presetName
+    x.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    x.TextColor3 = Color3.new(1,1,1)
+
+    x.MouseButton1Click:Connect(function()
+        selectedPreset = presetName
+        PresetButton.Text = presetName
+        PresetList.Visible = false
+
+        if selectedName then
+            local pdata = config.scripts[selectedName]
+            if pdata and pdata[selectedPreset] then
+                ScriptBox.Text = pdata[selectedPreset]
+            else
+                ScriptBox.Text = "-- Chưa có script cho preset này"
+            end
+        end
     end)
 end
 
---------------------------------------------------------------------------------
--- SCRIPT BOX
---------------------------------------------------------------------------------
+--------------------------------------------------
+-- RIGHT: SCRIPT BOX
+--------------------------------------------------
+local RightFrame = Instance.new("Frame")
+RightFrame.Parent = MainFrame
+RightFrame.Position = UDim2.new(0.36,0,0.12,0)
+RightFrame.Size = UDim2.new(0.62,0,0.78,0)
+RightFrame.BackgroundTransparency = 1
 
 local ScriptBox = Instance.new("TextBox")
 ScriptBox.Parent = RightFrame
-ScriptBox.Position = UDim2.new(0, 5, 0, 5)
-ScriptBox.Size = UDim2.new(1, -10, 1, -55)
+ScriptBox.Size = UDim2.new(1,0,0.75,0)
 ScriptBox.Font = Enum.Font.Code
-ScriptBox.Text = ""
-ScriptBox.PlaceholderText = "-- Viết script ở đây..."
-ScriptBox.PlaceholderColor3 = Color3.fromRGB(180,180,180)
-ScriptBox.TextColor3 = Color3.fromRGB(255,255,255)
-ScriptBox.BackgroundColor3 = Color3.fromRGB(40,40,50)
-ScriptBox.BorderColor3 = Color3.fromRGB(120,120,120)
 ScriptBox.TextSize = 14
+ScriptBox.Text = "-- Viết script ở đây"
 ScriptBox.MultiLine = true
 ScriptBox.ClearTextOnFocus = false
-ScriptBox.TextWrapped = false
+ScriptBox.BackgroundColor3 = Color3.fromRGB(40,40,50)
+ScriptBox.TextColor3 = Color3.fromRGB(255,255,255)
 ScriptBox.TextXAlignment = Enum.TextXAlignment.Left
 ScriptBox.TextYAlignment = Enum.TextYAlignment.Top
 
---------------------------------------------------------------------------------
--- SAVE BUTTON
---------------------------------------------------------------------------------
-
 local SaveBtn = Instance.new("TextButton")
 SaveBtn.Parent = RightFrame
-SaveBtn.Size = UDim2.new(1, -10, 0, 40)
-SaveBtn.Position = UDim2.new(0, 5, 1, -45)
-SaveBtn.BackgroundColor3 = Color3.fromRGB(50,150,70)
-SaveBtn.Text = "LƯU SCRIPT"
-SaveBtn.TextColor3 = Color3.fromRGB(255,255,255)
-SaveBtn.TextSize = 18
-SaveBtn.Font = Enum.Font.SourceSansBold
+SaveBtn.Position = UDim2.new(0,0,0.78,0)
+SaveBtn.Size = UDim2.new(0.48, -4, 0.22, -4)
+SaveBtn.BackgroundColor3 = Color3.fromRGB(50,150,200)
+SaveBtn.TextColor3 = Color3.new(1,1,1)
+SaveBtn.Text = "Lưu Script"
 
---------------------------------------------------------------------------------
--- SAVE / LOAD (Preset riêng)
---------------------------------------------------------------------------------
+local DeleteBtn = Instance.new("TextButton")
+DeleteBtn.Parent = RightFrame
+DeleteBtn.Position = UDim2.new(0.52,0,0.78,0)
+DeleteBtn.Size = UDim2.new(0.48, -4, 0.22, -4)
+DeleteBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
+DeleteBtn.TextColor3 = Color3.new(1,1,1)
+DeleteBtn.Text = "Xóa Script"
 
-function getFileName()
-    local user = UsernameDropdown.Text
-    local preset = PresetDropdown.Text
-    return "UserScript_"..user.."_"..preset..".json"
-end
+local RunBtn = Instance.new("TextButton")
+RunBtn.Parent = RightFrame
+RunBtn.Position = UDim2.new(0,0,1, -30)
+RunBtn.Size = UDim2.new(1,0,0,26)
+RunBtn.BackgroundColor3 = Color3.fromRGB(80,180,80)
+RunBtn.TextColor3 = Color3.new(1,1,1)
+RunBtn.Text = "Chạy Script"
 
-function saveConfig()
+local Status = Instance.new("TextLabel")
+Status.Parent = MainFrame
+Status.BackgroundTransparency = 1
+Status.Position = UDim2.new(0, 8, 0.92,0)
+Status.Size = UDim2.new(1, -16, 0, 18)
+Status.Text = "Status: Ready"
+Status.TextColor3 = Color3.fromRGB(200,200,200)
+
+--------------------------------------------------
+-- SAVE SCRIPT
+--------------------------------------------------
+SaveBtn.MouseButton1Click:Connect(function()
+    if not selectedName then
+        Status.Text = "Status: Chưa chọn username!"
+        return
+    end
+
+    if selectedName ~= player.Name then
+        Status.Text = "Status: Chỉ tự lưu script cho chính mình!"
+        return
+    end
+
+    config.scripts[selectedName] = config.scripts[selectedName] or {}
+    config.scripts[selectedName][selectedPreset] = ScriptBox.Text
+
+    safeWriteConfig()
+
+    Status.Text = "Status: Đã lưu script (" .. selectedPreset .. ")"
+end)
+
+--------------------------------------------------
+-- DELETE SCRIPT
+--------------------------------------------------
+DeleteBtn.MouseButton1Click:Connect(function()
+    if not selectedName then return end
+    if config.scripts[selectedName] then
+        config.scripts[selectedName][selectedPreset] = nil
+    end
+
+    safeWriteConfig()
+    ScriptBox.Text = "-- Script đã bị xóa"
+
+    Status.Text = "Status: Đã xóa script"
+end)
+
+--------------------------------------------------
+-- RUN SCRIPT BUTTON
+--------------------------------------------------
+RunBtn.MouseButton1Click:Connect(function()
     local code = ScriptBox.Text
-
-    if code == "" or code:find("template") then
-        warn("⛔ Không lưu vì script là template hoặc rỗng.")
+    if not code or #code < 1 then
+        Status.Text = "Status: Script trống!"
         return
     end
 
-    local data = { script = code }
-    writefile(getFileName(), HttpService:JSONEncode(data))
-    warn("✅ Đã lưu script cho preset: "..PresetDropdown.Text)
-end
-
-function loadConfig()
-    local file = getFileName()
-
-    if not isfile(file) then
-        ScriptBox.Text = ""
-        warn("⛔ Không có script của preset này → để trống.")
-        return
+    local f = loadstring(code)
+    if f then
+        task.spawn(function()
+            local ok, err = pcall(f)
+            if not ok then
+                warn("[ScriptManager] Lỗi khi chạy:", err)
+            end
+        end)
+        Status.Text = "Status: Đã chạy script!"
     end
+end)
 
-    local data = HttpService:JSONDecode(readfile(file))
-    ScriptBox.Text = data.script or ""
-    warn("✅ Đã load script cho preset: "..PresetDropdown.Text)
+--------------------------------------------------
+-- AUTO RUN WHEN PLAYER JOINS
+--------------------------------------------------
+local function autoRun(playerName)
+    local pdata = config.scripts[playerName]
+    if pdata then
+        for _, preset in ipairs(scriptPresets) do
+            local code = pdata[preset]
+            if code then
+                local f = loadstring(code)
+                if f then task.spawn(function() pcall(f) end) end
+            end
+        end
+    end
 end
 
-SaveBtn.MouseButton1Click:Connect(saveConfig)
+for _, pl in ipairs(Players:GetPlayers()) do
+    autoRun(pl.Name)
+end
 
---------------------------------------------------------------------------------
--- KHI MỞ GUI → không auto load cho đến khi chọn preset
---------------------------------------------------------------------------------
+Players.PlayerAdded:Connect(function(pl)
+    task.wait(0.2)
+    autoRun(pl.Name)
+    refreshPlayerList()
+end)
+
+Players.PlayerRemoving:Connect(function()
+    refreshPlayerList()
+end)
+
+--------------------------------------------------
+Status.Text = "Status: Ready!"
