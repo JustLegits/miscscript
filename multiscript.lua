@@ -4,9 +4,9 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- =====================================================================================
+--------------------------------------------------------------------------------
 -- GUI
--- =====================================================================================
+--------------------------------------------------------------------------------
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ScriptManagerGUI"
@@ -22,7 +22,6 @@ MainFrame.BorderColor3 = Color3.fromRGB(120, 120, 120)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
--- Title
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 30)
@@ -33,7 +32,6 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 18
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- LEFT SIDE
 local LeftFrame = Instance.new("Frame")
 LeftFrame.Parent = MainFrame
 LeftFrame.Size = UDim2.new(0, 150, 1, -30)
@@ -41,7 +39,6 @@ LeftFrame.Position = UDim2.new(0, 0, 0, 30)
 LeftFrame.BackgroundColor3 = Color3.fromRGB(45,45,55)
 LeftFrame.BorderColor3 = Color3.fromRGB(100,100,100)
 
--- RIGHT SIDE
 local RightFrame = Instance.new("Frame")
 RightFrame.Parent = MainFrame
 RightFrame.Size = UDim2.new(1, -150, 1, -30)
@@ -49,9 +46,9 @@ RightFrame.Position = UDim2.new(0, 150, 0, 30)
 RightFrame.BackgroundColor3 = Color3.fromRGB(50,50,60)
 RightFrame.BorderColor3 = Color3.fromRGB(100,100,100)
 
--- =====================================================================================
--- Dropdown chọn USERNAME
--- =====================================================================================
+--------------------------------------------------------------------------------
+-- USER DROPDOWN
+--------------------------------------------------------------------------------
 
 local UserLabel = Instance.new("TextLabel")
 UserLabel.Parent = LeftFrame
@@ -70,34 +67,9 @@ UsernameDropdown.BackgroundColor3 = Color3.fromRGB(60,60,75)
 UsernameDropdown.Text = player.Name
 UsernameDropdown.TextColor3 = Color3.fromRGB(255,255,255)
 
-local UserMenu = Instance.new("Frame")
-UserMenu.Parent = LeftFrame
-UserMenu.Position = UDim2.new(0,0,0,55)
-UserMenu.Size = UDim2.new(1,0,0,0)
-UserMenu.BackgroundTransparency = 1
-UserMenu.Visible = false
-
--- Chỉ local player được chọn (bảo mật như bạn yêu cầu)
-local option = Instance.new("TextButton")
-option.Parent = UserMenu
-option.Size = UDim2.new(1,0,0,25)
-option.BackgroundColor3 = Color3.fromRGB(80,80,95)
-option.Text = player.Name
-option.TextColor3 = Color3.fromRGB(255,255,255)
-
-UsernameDropdown.MouseButton1Click:Connect(function()
-    UserMenu.Visible = not UserMenu.Visible
-    UserMenu.Size = UDim2.new(1,0,0,25)
-end)
-
-option.MouseButton1Click:Connect(function()
-    UsernameDropdown.Text = player.Name
-    UserMenu.Visible = false
-end)
-
--- =====================================================================================
--- Dropdown chọn SCRIPT PRESET
--- =====================================================================================
+--------------------------------------------------------------------------------
+-- SCRIPT PRESET DROPDOWN (5 preset lưu riêng file)
+--------------------------------------------------------------------------------
 
 local PresetLabel = Instance.new("TextLabel")
 PresetLabel.Parent = LeftFrame
@@ -123,20 +95,14 @@ PresetMenu.Size = UDim2.new(1,0,0,0)
 PresetMenu.BackgroundTransparency = 1
 PresetMenu.Visible = false
 
-local presetList = {
-    ["Script 1"] = "-- Script 1 template",
-    ["Script 2"] = "-- Script 2 template",
-    ["Script 3"] = "-- Script 3 template",
-    ["Script 4"] = "-- Script 4 template",
-    ["Script 5"] = "-- Script 5 template",
-}
+local presetList = {"Script 1","Script 2","Script 3","Script 4","Script 5"}
 
 PresetDropdown.MouseButton1Click:Connect(function()
     PresetMenu.Visible = not PresetMenu.Visible
-    PresetMenu.Size = UDim2.new(1,0,0, #presetList * 25)
+    PresetMenu.Size = UDim2.new(1,0,0,#presetList * 25)
 end)
 
-for name, code in pairs(presetList) do
+for _, name in ipairs(presetList) do
     local btn = Instance.new("TextButton")
     btn.Parent = PresetMenu
     btn.Size = UDim2.new(1,0,0,25)
@@ -146,14 +112,14 @@ for name, code in pairs(presetList) do
 
     btn.MouseButton1Click:Connect(function()
         PresetDropdown.Text = name
-        ScriptBox.Text = code
         PresetMenu.Visible = false
+        loadConfig() -- tự load script của preset đó
     end)
 end
 
--- =====================================================================================
--- ScriptBox (chữ trắng)
--- =====================================================================================
+--------------------------------------------------------------------------------
+-- SCRIPT BOX
+--------------------------------------------------------------------------------
 
 local ScriptBox = Instance.new("TextBox")
 ScriptBox.Parent = RightFrame
@@ -173,7 +139,10 @@ ScriptBox.TextWrapped = false
 ScriptBox.TextXAlignment = Enum.TextXAlignment.Left
 ScriptBox.TextYAlignment = Enum.TextYAlignment.Top
 
--- Save button
+--------------------------------------------------------------------------------
+-- SAVE BUTTON
+--------------------------------------------------------------------------------
+
 local SaveBtn = Instance.new("TextButton")
 SaveBtn.Parent = RightFrame
 SaveBtn.Size = UDim2.new(1, -10, 0, 40)
@@ -184,13 +153,17 @@ SaveBtn.TextColor3 = Color3.fromRGB(255,255,255)
 SaveBtn.TextSize = 18
 SaveBtn.Font = Enum.Font.SourceSansBold
 
--- =====================================================================================
--- SAVE & LOAD
--- =====================================================================================
+--------------------------------------------------------------------------------
+-- SAVE / LOAD (Preset riêng)
+--------------------------------------------------------------------------------
 
-local function saveConfig()
+function getFileName()
     local user = UsernameDropdown.Text
     local preset = PresetDropdown.Text
+    return "UserScript_"..user.."_"..preset..".json"
+end
+
+function saveConfig()
     local code = ScriptBox.Text
 
     if code == "" or code:find("template") then
@@ -198,32 +171,27 @@ local function saveConfig()
         return
     end
 
-    local data = {
-        preset = preset,
-        script = code
-    }
-
-    writefile("UserScript_"..user..".json", HttpService:JSONEncode(data))
-    warn("✅ Đã lưu script cho: "..user)
+    local data = { script = code }
+    writefile(getFileName(), HttpService:JSONEncode(data))
+    warn("✅ Đã lưu script cho preset: "..PresetDropdown.Text)
 end
 
-local function loadConfig()
-    local user = UsernameDropdown.Text
-    local file = "UserScript_"..user..".json"
+function loadConfig()
+    local file = getFileName()
 
     if not isfile(file) then
-        warn("Không có script để load.")
+        ScriptBox.Text = ""
+        warn("⛔ Không có script của preset này → để trống.")
         return
     end
 
     local data = HttpService:JSONDecode(readfile(file))
     ScriptBox.Text = data.script or ""
-    PresetDropdown.Text = data.preset or "Chọn Script..."
-
-    warn("✅ Đã load script cho: "..user)
+    warn("✅ Đã load script cho preset: "..PresetDropdown.Text)
 end
 
 SaveBtn.MouseButton1Click:Connect(saveConfig)
 
-task.wait(0.2)
-loadConfig()
+--------------------------------------------------------------------------------
+-- KHI MỞ GUI → không auto load cho đến khi chọn preset
+--------------------------------------------------------------------------------
