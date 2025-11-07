@@ -1,11 +1,11 @@
 --[[
-    Script Cải Tiến: Auto Teleport v3.1
+    Script Cải Tiến: Auto Teleport v3.2
     - GUI Bật/Tắt
     - Tùy chỉnh giây teleport
     - Nút Lưu và Xóa Vị Trí
     - Tự động lưu và tải cấu hình (Giây, Bật/Tắt)
-    - [FIXED] Sửa lỗi 'dile' thành 'delfile'
-    - [FIXED] Xóa code 'CharacterRemoving' thừa
+    - [FIXED] Tự động dọn dẹp GUI cũ khi chạy lại
+    - [FIXED] Sửa lỗi logic tự động bật khi không có vị trí
 ]]
 
 -- Dịch vụ và Biến
@@ -27,6 +27,17 @@ local function getHRP()
 end
 
 local hrp = getHRP()
+
+-- ===================================================================
+-- --- MỚI: DỌN DẸP GUI CŨ KHI CHẠY LẠI ---
+-- ===================================================================
+local oldGui = player:WaitForChild("PlayerGui"):FindFirstChild("TeleportGUI")
+if oldGui then
+    warn("Phát hiện GUI cũ. Đang dọn dẹp...")
+    oldGui:Destroy()
+    task.wait(0.1) -- Chờ một chút để đảm bảo đã xóa
+end
+-- ===================================================================
 
 -- ===================================================================
 -- TẠO GIAO DIỆN (GUI)
@@ -54,7 +65,7 @@ TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 TitleLabel.BorderColor3 = Color3.fromRGB(150, 150, 150)
 TitleLabel.Size = UDim2.new(1, 0, 0, 30)
 TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.Text = "Auto Teleport v3.1" -- Cập nhật tiêu đề
+TitleLabel.Text = "Auto Teleport v3.2" -- Cập nhật tiêu đề
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 18
 
@@ -120,7 +131,7 @@ DeleteButton.TextSize = 16
 -- CHỨC NĂNG SCRIPT
 -- ===================================================================
 
--- --- MỚI: Hàm lưu cài đặt (Giây, Bật/Tắt) ---
+-- Hàm lưu cài đặt (Giây, Bật/Tắt)
 local function saveConfig()
     local configTable = {
         interval = tonumber(IntervalBox.Text) or 1,
@@ -192,7 +203,7 @@ ToggleButton.MouseButton1Click:Connect(function()
                     hrp.CFrame = CFrame.new(savedPos)
                 else
                     warn("Đang chờ nhân vật...")
-                    hrp = getHRP() -- Phần này sẽ tự động 'Wait' (chờ) khi nhân vật chết
+                    hrp = getHRP()
                     if hrp then
                          hrp.CFrame = CFrame.new(savedPos)
                     end
@@ -228,7 +239,7 @@ end)
 -- Nút XÓA VỊ TRÍ
 DeleteButton.MouseButton1Click:Connect(function()
     if isfile(fileName) then
-        delfile(fileName) -- <<< SỬA LỖI Ở ĐÂY (dile -> delfile)
+        delfile(fileName)
         savedPos = nil
         warn(":wastebasket: Đã xóa file lưu vị trí:", fileName)
         
@@ -242,7 +253,7 @@ DeleteButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- --- MỚI: Hàm tải cài đặt (Giây, Bật/Tắt) ---
+-- Hàm tải cài đặt (Giây, Bật/Tắt)
 local function loadConfig()
     local success, result = pcall(function()
         if isfile(configFileName) then
@@ -252,15 +263,25 @@ local function loadConfig()
     end)
 
     if success and result and result.interval then
-        IntervalBox.Text = tostring(result.interval) -- Tải số giây vào TextBox
+        IntervalBox.Text = tostring(result.interval)
         warn(":floppy_disk: Đã tải cấu hình: Giây = " .. result.interval)
         
         if result.autoStart == true then
-            warn("... Tự động BẬT theo cấu hình đã lưu.")
-            -- Chờ một chút để script (đặc biệt là loadPosition) ổn định
-            task.wait(0.2) 
-            -- Tự động nhấn nút BẬT/TẮT để kích hoạt
-            ToggleButton.MouseButton1Click:Fire()
+            -- ===================================================================
+            -- --- MỚI: SỬA LOGIC TỰ BẬT ---
+            -- ===================================================================
+            -- Chỉ tự động bật nếu vị trí đã được tải (từ hàm loadPosition() ở dưới)
+            if savedPos then
+                warn("... Vị trí TỒN TẠI. Tự động BẬT theo cấu hình đã lưu.")
+                task.wait(0.2) 
+                ToggleButton.MouseButton1Click:Fire()
+            else
+                -- Nếu muốn tự bật NƯNG không có vị trí, tự động sửa lại config
+                warn("... Muốn tự động BẬT, nhưng không tìm thấy vị trí. Đặt lại config về TẮT.")
+                isTeleporting = false
+                saveConfig()
+            end
+            -- ===================================================================
         end
     else
         warn(":card_box: Không tìm thấy file config, dùng mặc định.")
@@ -272,11 +293,8 @@ end
 -- KHỞI CHẠY SCRIPT
 -- ===================================================================
 
--- 1. Tải vị trí đã lưu (nếu có) khi script bắt đầu
+-- 1. Tải vị trí đã lưu (QUAN TRỌNG: phải chạy trước loadConfig)
 loadPosition()
 
--- 2. Tải cài đặt (nếu có) và tự động bật nếu được cài
-loadConfig() -- Gọi hàm tải config
-
--- 3. XÓA BỎ PHẦN DỌN DẸP THỪA
--- (Đã xóa 'player.CharacterRemoving:Connect' vì vòng lặp while đã xử lý)
+-- 2. Tải cài đặt (và tự động bật nếu điều kiện (1) hợp lệ)
+loadConfig()
