@@ -1,9 +1,11 @@
 --[[
-    Script Cải Tiến: Auto Teleport v3
+    Script Cải Tiến: Auto Teleport v3.1
     - GUI Bật/Tắt
     - Tùy chỉnh giây teleport
     - Nút Lưu và Xóa Vị Trí
     - Tự động lưu và tải cấu hình (Giây, Bật/Tắt)
+    - [FIXED] Sửa lỗi 'dile' thành 'delfile'
+    - [FIXED] Xóa code 'CharacterRemoving' thừa
 ]]
 
 -- Dịch vụ và Biến
@@ -12,7 +14,7 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 local fileName = "SavedPosition.json"
-local configFileName = "TeleportConfig.json" -- MỚI: File để lưu cài đặt
+local configFileName = "TeleportConfig.json"
 local savedPos = nil
 local isTeleporting = false
 local teleportThread = nil
@@ -52,7 +54,7 @@ TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 TitleLabel.BorderColor3 = Color3.fromRGB(150, 150, 150)
 TitleLabel.Size = UDim2.new(1, 0, 0, 30)
 TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.Text = "Auto Teleport v3" -- MỚI: Cập nhật tiêu đề
+TitleLabel.Text = "Auto Teleport v3.1" -- Cập nhật tiêu đề
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 18
 
@@ -168,7 +170,7 @@ ToggleButton.MouseButton1Click:Connect(function()
         if not savedPos then
             warn(":x: Không có vị trí để teleport! Vui lòng 'Lưu Vị Trí' trước.")
             isTeleporting = false -- Tắt lại
-            saveConfig() -- MỚI: Lưu trạng thái TẮT vì không thành công
+            saveConfig() -- Lưu trạng thái TẮT vì không thành công
             return
         end
 
@@ -190,7 +192,7 @@ ToggleButton.MouseButton1Click:Connect(function()
                     hrp.CFrame = CFrame.new(savedPos)
                 else
                     warn("Đang chờ nhân vật...")
-                    hrp = getHRP()
+                    hrp = getHRP() -- Phần này sẽ tự động 'Wait' (chờ) khi nhân vật chết
                     if hrp then
                          hrp.CFrame = CFrame.new(savedPos)
                     end
@@ -203,7 +205,7 @@ ToggleButton.MouseButton1Click:Connect(function()
         stopTeleporting()
     end
     
-    saveConfig() -- MỚI: Lưu trạng thái BẬT hoặc TẮT mỗi khi nhấn nút
+    saveConfig() -- Lưu trạng thái BẬT hoặc TẮT mỗi khi nhấn nút
 end)
 
 -- Nút LƯU VỊ TRÍ
@@ -226,13 +228,13 @@ end)
 -- Nút XÓA VỊ TRÍ
 DeleteButton.MouseButton1Click:Connect(function()
     if isfile(fileName) then
-        dile(fileName)
+        delfile(fileName) -- <<< SỬA LỖI Ở ĐÂY (dile -> delfile)
         savedPos = nil
         warn(":wastebasket: Đã xóa file lưu vị trí:", fileName)
         
         if isTeleporting then
             stopTeleporting()
-            saveConfig() -- MỚI: Lưu trạng thái TẮT
+            saveConfig() -- Lưu trạng thái TẮT
             warn("Đã tự động tắt teleport vì file bị xóa.")
         end
     else
@@ -274,11 +276,7 @@ end
 loadPosition()
 
 -- 2. Tải cài đặt (nếu có) và tự động bật nếu được cài
-loadConfig() -- MỚI: Gọi hàm tải config
+loadConfig() -- Gọi hàm tải config
 
--- Dọn dẹp
-player.CharacterRemoving:Connect(function()
-    if teleportThread then
-        task.cancel(teleportThread)
-    end
-end)
+-- 3. XÓA BỎ PHẦN DỌN DẸP THỪA
+-- (Đã xóa 'player.CharacterRemoving:Connect' vì vòng lặp while đã xử lý)
