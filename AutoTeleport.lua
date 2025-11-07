@@ -1,11 +1,8 @@
 --[[
-    Script Cải Tiến: Auto Teleport v3.3
-    - [FIX] Giải quyết xung đột thread khi chạy lại script (Vấn đề 1 & 2)
-    - [FIX] Cải thiện logic start/stop/load
-    - GUI Bật/Tắt
-    - Tùy chỉnh giây teleport
-    - Nút Lưu và Xóa Vị Trí
-    - Tự động lưu và tải cấu hình
+    Script Cải Tiến: Auto Teleport v4.0
+    - [FIX] Giải quyết triệt để lỗi "thread mồ côi" (chạy nền khi execute lại)
+          bằng logic "Instance ID" (Tự hủy).
+    - [FIX] Logic tự bật/tắt đã được làm rõ.
 ]]
 
 -- Dịch vụ và Biến
@@ -19,6 +16,9 @@ local savedPos = nil
 local isTeleporting = false
 local teleportThread = nil
 
+-- --- MỚI: TẠO ID DUY NHẤT CHO PHIÊN SCRIPT NÀY ---
+local myID = tostring(tick())
+
 -- Hàm chờ Character và HRP (sẽ được gọi lại nếu nhân vật chết)
 local function getHRP()
     local character = player.Character or player.CharacterAdded:Wait()
@@ -29,7 +29,7 @@ end
 local hrp = getHRP()
 
 -- ===================================================================
--- --- MỚI: DỌN DẸP TRIỆT ĐỂ SCRIPT CŨ ---
+-- --- MỚI: DỌN DẸP TRIỆT ĐỂ SCRIPT CŨ (LOGIC TỰ HỦY) ---
 -- ===================================================================
 local playerGui = player:WaitForChild("PlayerGui")
 local oldGui = playerGui:FindFirstChild("TeleportGUI")
@@ -37,16 +37,20 @@ local oldGui = playerGui:FindFirstChild("TeleportGUI")
 if oldGui then
     warn("Phát hiện GUI cũ. Đang dọn dẹp...")
     
-    -- --- MỚI: TÌM VÀ HỦY THREAD CŨ ĐANG CHẠY ---
-    local oldThreadHolder = oldGui:FindFirstChild("ThreadHolder")
-    if oldThreadHolder and oldThreadHolder.Value then
-        warn("... Tìm thấy thread cũ. Đang dừng...")
-        task.cancel(oldThreadHolder.Value)
+    -- --- MỚI: GỬI TÍN HIỆU TỰ HỦY CHO THREAD CŨ ---
+    -- Bằng cách thay đổi InstanceID của nó.
+    local oldInstanceID = oldGui:FindFirstChild("InstanceID")
+    if oldInstanceID then
+        warn("... Gửi tín hiệu tự hủy đến thread cũ.")
+        oldInstanceID.Value = "OBSOLETE" -- Đánh dấu ID này là "lỗi thời"
     end
+    
+    -- Chờ một chút để thread cũ nhận tín hiệu (nếu cần)
+    -- task.wait(0.1) 
     
     -- Xóa GUI cũ
     oldGui:Destroy()
-    task.wait(0.1) -- Chờ một chút để đảm bảo đã xóa
+    warn("Đã xóa GUI cũ.")
 end
 -- ===================================================================
 
@@ -59,10 +63,11 @@ ScreenGui.Parent = playerGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
 
--- --- MỚI: TẠO KHUNG LƯU TRỮ THREAD ---
-local threadHolder = Instance.new("ObjectValue")
-threadHolder.Name = "ThreadHolder"
-threadHolder.Parent = ScreenGui
+-- --- MỚI: LƯU TRỮ ID CỦA PHIÊN SCRIPT NÀY ---
+local instanceIDValue = Instance.new("StringValue")
+instanceIDValue.Name = "InstanceID"
+instanceIDValue.Value = myID -- Lưu ID của chính mình
+instanceIDValue.Parent = ScreenGui
 -- ---------------------------------------
 
 local MainFrame = Instance.new("Frame")
@@ -82,7 +87,7 @@ TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 TitleLabel.BorderColor3 = Color3.fromRGB(150, 150, 150)
 TitleLabel.Size = UDim2.new(1, 0, 0, 30)
 TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.Text = "Auto Teleport v3.3" -- Cập nhật tiêu đề
+TitleLabel.Text = "Auto Teleport v4.0" -- Cập nhật tiêu đề
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 18
 
@@ -97,6 +102,7 @@ ToggleButton.Text = "TẮT"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.TextSize = 16
 
+-- (Các thành phần GUI khác không đổi: IntervalLabel, IntervalBox, SetButton, DeleteButton)
 local IntervalLabel = Instance.new("TextLabel")
 IntervalLabel.Name = "IntervalLabel"
 IntervalLabel.Parent = MainFrame
@@ -108,7 +114,6 @@ IntervalLabel.Text = "Giây:"
 IntervalLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 IntervalLabel.TextSize = 14
 IntervalLabel.TextXAlignment = Enum.TextXAlignment.Right
-
 local IntervalBox = Instance.new("TextBox")
 IntervalBox.Name = "IntervalBox"
 IntervalBox.Parent = MainFrame
@@ -117,11 +122,10 @@ IntervalBox.BorderColor3 = Color3.fromRGB(150, 150, 150)
 IntervalBox.Position = UDim2.new(0.72, 0, 0.28, 0)
 IntervalBox.Size = UDim2.new(0.23, 0, 0, 35)
 IntervalBox.Font = Enum.Font.SourceSans
-IntervalBox.Text = "1" -- Mặc định 1 giây
+IntervalBox.Text = "1"
 IntervalBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 IntervalBox.TextSize = 14
 IntervalBox.ClearTextOnFocus = false
-
 local SetButton = Instance.new("TextButton")
 SetButton.Name = "SetButton"
 SetButton.Parent = MainFrame
@@ -132,7 +136,6 @@ SetButton.Font = Enum.Font.SourceSansBold
 SetButton.Text = "Lưu Vị Trí"
 SetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SetButton.TextSize = 16
-
 local DeleteButton = Instance.new("TextButton")
 DeleteButton.Name = "DeleteButton"
 DeleteButton.Parent = MainFrame
@@ -177,19 +180,20 @@ local function loadPosition()
     end
 end
 
--- --- MỚI: Tách hàm Dừng và Bắt đầu ---
+-- --- CẢI TIẾN: Tách hàm Dừng và Bắt đầu ---
 
 -- Hàm dừng vòng lặp teleport
 local function stopTeleporting()
+    isTeleporting = false -- Tắt cờ -> Vòng lặp sẽ tự `break`
+    
     if teleportThread then
-        task.cancel(teleportThread)
+        task.cancel(teleportThread) -- Hủy thread ngay lập tức
         teleportThread = nil
     end
-    isTeleporting = false
+    
     ToggleButton.Text = "TẮT"
     ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- Đỏ
     warn(":stop_button: Đã dừng auto teleport.")
-    threadHolder.Value = nil -- Xóa thread khỏi khung lưu trữ
 end
 
 -- Hàm bắt đầu vòng lặp teleport
@@ -209,11 +213,24 @@ local function startTeleporting()
     isTeleporting = true
     ToggleButton.Text = "BẬT"
     ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- Xanh
-    warn(":arrow_forward: Bắt đầu auto teleport mỗi " .. interval .. " giây.")
+    warn(":arrow_forward: Bắt đầu auto teleport (ID: " .. myID .. ") mỗi " .. interval .. " giây.")
 
     -- Bắt đầu vòng lặp
     teleportThread = task.spawn(function()
+        -- --- MỚI: Lấy tham chiếu đến ID của chính mình ---
+        local myInstanceIDRef = ScreenGui:FindFirstChild("InstanceID")
+        
         while isTeleporting do
+            
+            -- --- MỚI: LOGIC TỰ HỦY ---
+            -- Kiểm tra xem GUI có còn tồn tại không VÀ ID có còn là của mình không
+            if not myInstanceIDRef or myInstanceIDRef.Value ~= myID then
+                warn(":rotating_light: Phát hiện script mới (hoặc GUI bị xóa). Tự hủy thread cũ (ID: " .. myID .. ").")
+                isTeleporting = false -- Tắt cờ
+                break -- Thoát vòng lặp
+            end
+            
+            -- Logic teleport
             if player.Character and hrp then
                 hrp.CFrame = CFrame.new(savedPos)
             else
@@ -223,11 +240,15 @@ local function startTeleporting()
                      hrp.CFrame = CFrame.new(savedPos)
                 end
             end
+            
             task.wait(interval)
         end
+        
+        -- Dọn dẹp sau khi vòng lặp dừng
+        teleportThread = nil
+        warn("Thread (ID: " .. myID .. ") đã dừng hẳn.")
     end)
     
-    threadHolder.Value = teleportThread -- Lưu thread mới vào khung
     return true -- Thành công
 end
 -- ---------------------------------------
@@ -235,7 +256,7 @@ end
 -- Nút BẬT/TẮT
 ToggleButton.MouseButton1Click:Connect(function()
     if not isTeleporting then
-        startTeleporting() -- Chỉ cần gọi hàm, nó sẽ tự xử lý
+        startTeleporting()
     else
         stopTeleporting()
     end
@@ -291,20 +312,20 @@ local function loadConfig()
         warn(":floppy_disk: Đã tải cấu hình: Giây = " .. result.interval)
         
         if result.autoStart == true then
-            warn("... Tự động BẬT theo cấu hình đã lưu.")
+            warn("... Config yêu cầu Tự động BẬT.")
             
-            -- --- MỚI: Sửa logic tự bật ---
             if not startTeleporting() then
                 -- Nếu BẬT thất bại (do chưa có vị trí)
-                warn("... Tự động BẬT thất bại (chưa lưu vị trí?). Đặt lại config về TẮT.")
+                warn("... Tự động BẬT thất bại (chưa lưu vị trí?). Giữ nguyên trạng thái TẮT.")
+                isTeleporting = false
                 saveConfig() -- Lưu lại trạng thái TẮT
             else
                 -- Nếu BẬT thành công
                 warn("... Tự động BẬT thành công.")
-                -- Không cần lưu config, vì startTeleporting() không lưu.
-                -- Chúng ta sẽ saveConfig() ngay sau khi gọi loadConfig
+                -- không cần saveConfig() ở đây
             end
-            -- ------------------------------
+        else
+             warn("... Config yêu cầu Tự động TẮT.")
         end
     else
         warn(":card_box: Không tìm thấy file config, dùng mặc định.")
@@ -322,6 +343,6 @@ loadPosition()
 -- 2. Tải cài đặt (và tự động bật nếu cần)
 loadConfig()
 
--- 3. --- MỚI: Lưu config lần đầu ---
--- (Để đảm bảo trạng thái BẬT/TẮT được lưu chính xác sau khi auto-start)
+-- 3. Lưu config lần cuối khi khởi chạy
+-- (Để đảm bảo trạng thái BẬT/TẮT là chính xác sau khi load)
 saveConfig()
