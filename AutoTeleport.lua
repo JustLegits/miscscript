@@ -1,11 +1,11 @@
 --[[
-    Script Cải Tiến: Auto Teleport v3.2
+    Script Cải Tiến: Auto Teleport v3.3
+    - [FIX] Giải quyết xung đột thread khi chạy lại script (Vấn đề 1 & 2)
+    - [FIX] Cải thiện logic start/stop/load
     - GUI Bật/Tắt
     - Tùy chỉnh giây teleport
     - Nút Lưu và Xóa Vị Trí
-    - Tự động lưu và tải cấu hình (Giây, Bật/Tắt)
-    - [FIXED] Tự động dọn dẹp GUI cũ khi chạy lại
-    - [FIXED] Sửa lỗi logic tự động bật khi không có vị trí
+    - Tự động lưu và tải cấu hình
 ]]
 
 -- Dịch vụ và Biến
@@ -29,11 +29,22 @@ end
 local hrp = getHRP()
 
 -- ===================================================================
--- --- MỚI: DỌN DẸP GUI CŨ KHI CHẠY LẠI ---
+-- --- MỚI: DỌN DẸP TRIỆT ĐỂ SCRIPT CŨ ---
 -- ===================================================================
-local oldGui = player:WaitForChild("PlayerGui"):FindFirstChild("TeleportGUI")
+local playerGui = player:WaitForChild("PlayerGui")
+local oldGui = playerGui:FindFirstChild("TeleportGUI")
+
 if oldGui then
     warn("Phát hiện GUI cũ. Đang dọn dẹp...")
+    
+    -- --- MỚI: TÌM VÀ HỦY THREAD CŨ ĐANG CHẠY ---
+    local oldThreadHolder = oldGui:FindFirstChild("ThreadHolder")
+    if oldThreadHolder and oldThreadHolder.Value then
+        warn("... Tìm thấy thread cũ. Đang dừng...")
+        task.cancel(oldThreadHolder.Value)
+    end
+    
+    -- Xóa GUI cũ
     oldGui:Destroy()
     task.wait(0.1) -- Chờ một chút để đảm bảo đã xóa
 end
@@ -44,9 +55,15 @@ end
 -- ===================================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TeleportGUI"
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
+ScreenGui.Parent = playerGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
+
+-- --- MỚI: TẠO KHUNG LƯU TRỮ THREAD ---
+local threadHolder = Instance.new("ObjectValue")
+threadHolder.Name = "ThreadHolder"
+threadHolder.Parent = ScreenGui
+-- ---------------------------------------
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -65,7 +82,7 @@ TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 TitleLabel.BorderColor3 = Color3.fromRGB(150, 150, 150)
 TitleLabel.Size = UDim2.new(1, 0, 0, 30)
 TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.Text = "Auto Teleport v3.2" -- Cập nhật tiêu đề
+TitleLabel.Text = "Auto Teleport v3.3" -- Cập nhật tiêu đề
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 18
 
@@ -131,7 +148,7 @@ DeleteButton.TextSize = 16
 -- CHỨC NĂNG SCRIPT
 -- ===================================================================
 
--- Hàm lưu cài đặt (Giây, Bật/Tắt)
+-- Hàm lưu cài đặt
 local function saveConfig()
     local configTable = {
         interval = tonumber(IntervalBox.Text) or 1,
@@ -160,6 +177,8 @@ local function loadPosition()
     end
 end
 
+-- --- MỚI: Tách hàm Dừng và Bắt đầu ---
+
 -- Hàm dừng vòng lặp teleport
 local function stopTeleporting()
     if teleportThread then
@@ -170,49 +189,54 @@ local function stopTeleporting()
     ToggleButton.Text = "TẮT"
     ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- Đỏ
     warn(":stop_button: Đã dừng auto teleport.")
+    threadHolder.Value = nil -- Xóa thread khỏi khung lưu trữ
 end
+
+-- Hàm bắt đầu vòng lặp teleport
+local function startTeleporting()
+    if not savedPos then
+        warn(":x: Không có vị trí để teleport! Vui lòng 'Lưu Vị Trí' trước.")
+        return false -- Thất bại
+    end
+
+    local interval = tonumber(IntervalBox.Text)
+    if not interval or interval <= 0 then
+        warn(":warning: Số giây không hợp lệ. Đặt thành 1.")
+        interval = 1
+        IntervalBox.Text = "1"
+    end
+
+    isTeleporting = true
+    ToggleButton.Text = "BẬT"
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- Xanh
+    warn(":arrow_forward: Bắt đầu auto teleport mỗi " .. interval .. " giây.")
+
+    -- Bắt đầu vòng lặp
+    teleportThread = task.spawn(function()
+        while isTeleporting do
+            if player.Character and hrp then
+                hrp.CFrame = CFrame.new(savedPos)
+            else
+                warn("Đang chờ nhân vật...")
+                hrp = getHRP()
+                if hrp then
+                     hrp.CFrame = CFrame.new(savedPos)
+                end
+            end
+            task.wait(interval)
+        end
+    end)
+    
+    threadHolder.Value = teleportThread -- Lưu thread mới vào khung
+    return true -- Thành công
+end
+-- ---------------------------------------
 
 -- Nút BẬT/TẮT
 ToggleButton.MouseButton1Click:Connect(function()
-    isTeleporting = not isTeleporting -- Đảo trạng thái
-
-    if isTeleporting then
-        -- BẮT ĐẦU
-        if not savedPos then
-            warn(":x: Không có vị trí để teleport! Vui lòng 'Lưu Vị Trí' trước.")
-            isTeleporting = false -- Tắt lại
-            saveConfig() -- Lưu trạng thái TẮT vì không thành công
-            return
-        end
-
-        local interval = tonumber(IntervalBox.Text)
-        if not interval or interval <= 0 then
-            warn(":warning: Số giây không hợp lệ. Đặt thành 1.")
-            interval = 1
-            IntervalBox.Text = "1"
-        end
-
-        ToggleButton.Text = "BẬT"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- Xanh
-        warn(":arrow_forward: Bắt đầu auto teleport mỗi " .. interval .. " giây.")
-
-        -- Bắt đầu vòng lặp
-        teleportThread = task.spawn(function()
-            while isTeleporting do
-                if player.Character and hrp then
-                    hrp.CFrame = CFrame.new(savedPos)
-                else
-                    warn("Đang chờ nhân vật...")
-                    hrp = getHRP()
-                    if hrp then
-                         hrp.CFrame = CFrame.new(savedPos)
-                    end
-                end
-                task.wait(interval)
-            end
-        end)
+    if not isTeleporting then
+        startTeleporting() -- Chỉ cần gọi hàm, nó sẽ tự xử lý
     else
-        -- DỪNG
         stopTeleporting()
     end
     
@@ -267,21 +291,20 @@ local function loadConfig()
         warn(":floppy_disk: Đã tải cấu hình: Giây = " .. result.interval)
         
         if result.autoStart == true then
-            -- ===================================================================
-            -- --- MỚI: SỬA LOGIC TỰ BẬT ---
-            -- ===================================================================
-            -- Chỉ tự động bật nếu vị trí đã được tải (từ hàm loadPosition() ở dưới)
-            if savedPos then
-                warn("... Vị trí TỒN TẠI. Tự động BẬT theo cấu hình đã lưu.")
-                task.wait(0.2) 
-                ToggleButton.MouseButton1Click:Fire()
+            warn("... Tự động BẬT theo cấu hình đã lưu.")
+            
+            -- --- MỚI: Sửa logic tự bật ---
+            if not startTeleporting() then
+                -- Nếu BẬT thất bại (do chưa có vị trí)
+                warn("... Tự động BẬT thất bại (chưa lưu vị trí?). Đặt lại config về TẮT.")
+                saveConfig() -- Lưu lại trạng thái TẮT
             else
-                -- Nếu muốn tự bật NƯNG không có vị trí, tự động sửa lại config
-                warn("... Muốn tự động BẬT, nhưng không tìm thấy vị trí. Đặt lại config về TẮT.")
-                isTeleporting = false
-                saveConfig()
+                -- Nếu BẬT thành công
+                warn("... Tự động BẬT thành công.")
+                -- Không cần lưu config, vì startTeleporting() không lưu.
+                -- Chúng ta sẽ saveConfig() ngay sau khi gọi loadConfig
             end
-            -- ===================================================================
+            -- ------------------------------
         end
     else
         warn(":card_box: Không tìm thấy file config, dùng mặc định.")
@@ -293,8 +316,12 @@ end
 -- KHỞI CHẠY SCRIPT
 -- ===================================================================
 
--- 1. Tải vị trí đã lưu (QUAN TRỌNG: phải chạy trước loadConfig)
+-- 1. Tải vị trí (Phải chạy trước loadConfig)
 loadPosition()
 
--- 2. Tải cài đặt (và tự động bật nếu điều kiện (1) hợp lệ)
+-- 2. Tải cài đặt (và tự động bật nếu cần)
 loadConfig()
+
+-- 3. --- MỚI: Lưu config lần đầu ---
+-- (Để đảm bảo trạng thái BẬT/TẮT được lưu chính xác sau khi auto-start)
+saveConfig()
