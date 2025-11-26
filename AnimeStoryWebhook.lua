@@ -1,24 +1,17 @@
 -- Roblox Discord Webhook Sender (Delta / common executors)
--- Features: movable GUI, webhook input, minutes delay, toggle on/off, save config
+-- Features: movable GUI, webhook input, minutes delay, toggle on/off (saved), save config, send now
 -- Sends:
 --   1) Player Name in Discord spoiler tags (||Name||)
 --   2) Player Level (leaderstats.Level)
 --   3) Total Gems (LocalPlayer.Data.Gems)
 --   4) Total Coins (LocalPlayer.Data.Coins)
---anti afk kick
-local vu = game:GetService("VirtualUser")
-game:GetService("Players").LocalPlayer.Idled:connect(function()
-   vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
-   wait(1)
-   vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
-end)
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- Config / storage
-local CONFIG_FILE = "webhook_config.txt" -- simple JSON: { webhook = "...", minutes = 5 }
+local CONFIG_FILE = "webhook_config.txt" -- JSON: { webhook = "...", minutes = 5, running = true/false }
 
 -- Helper: safe request function (works with many executors)
 local function http_post_json(url, data_table)
@@ -67,7 +60,6 @@ local function build_content()
         end
     end)
 
-    -- Player name must be in Discord spoiler tags
     local name_spoiler = "||" .. tostring(LocalPlayer.Name) .. "||"
 
     local content = string.format("%s\nPlayer Level: %s\nTotal Gems: %s\nTotal Coins: %s",
@@ -87,11 +79,9 @@ local function send_to_webhook(webhook_url)
     if not ok then
         return false, ("Request failed: %s"):format(tostring(res))
     end
-    -- Some executors return table with StatusCode; others return different shapes. We'll attempt to interpret success:
     if type(res) == "table" and (res.Success == true or res.StatusCode == 204 or res.StatusCode == 200) then
         return true, res
     end
-    -- If the executor returned a table but didn't include helpful fields, assume success when no error thrown
     return true, res
 end
 
@@ -126,7 +116,7 @@ end
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "WebhookSenderGUI"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = game:GetService("CoreGui") -- executors typically allow CoreGui manipulation
+ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Size = UDim2.new(0, 360, 0, 200)
@@ -135,9 +125,8 @@ Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Frame.BorderSizePixel = 0
 Frame.Parent = ScreenGui
 Frame.Active = true
-Frame.Draggable = true -- basic dragging; some executors allow Draggable
+Frame.Draggable = true
 
--- Title
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 28)
 Title.BackgroundTransparency = 1
@@ -147,7 +136,6 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 18
 Title.Parent = Frame
 
--- Webhook label + textbox
 local webhookLabel = Instance.new("TextLabel")
 webhookLabel.Size = UDim2.new(1, -16, 0, 18)
 webhookLabel.Position = UDim2.new(0, 8, 0, 36)
@@ -171,7 +159,6 @@ webhookBox.Font = Enum.Font.SourceSans
 webhookBox.TextSize = 14
 webhookBox.Parent = Frame
 
--- Minutes label + textbox
 local minutesLabel = Instance.new("TextLabel")
 minutesLabel.Size = UDim2.new(0.5, -12, 0, 18)
 minutesLabel.Position = UDim2.new(0, 8, 0, 92)
@@ -195,7 +182,6 @@ minutesBox.Font = Enum.Font.SourceSans
 minutesBox.TextSize = 14
 minutesBox.Parent = Frame
 
--- Toggle button
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0.5, -12, 0, 28)
 toggleBtn.Position = UDim2.new(0.5, 4, 0, 112)
@@ -206,7 +192,6 @@ toggleBtn.Font = Enum.Font.SourceSansBold
 toggleBtn.TextSize = 14
 toggleBtn.Parent = Frame
 
--- Save button
 local saveBtn = Instance.new("TextButton")
 saveBtn.Size = UDim2.new(0.5, -12, 0, 28)
 saveBtn.Position = UDim2.new(0, 8, 0, 150)
@@ -217,7 +202,6 @@ saveBtn.Font = Enum.Font.SourceSans
 saveBtn.TextSize = 14
 saveBtn.Parent = Frame
 
--- Send Now button (optional convenience)
 local sendNowBtn = Instance.new("TextButton")
 sendNowBtn.Size = UDim2.new(0.5, -12, 0, 28)
 sendNowBtn.Position = UDim2.new(0.5, 4, 0, 150)
@@ -228,7 +212,6 @@ sendNowBtn.Font = Enum.Font.SourceSans
 sendNowBtn.TextSize = 14
 sendNowBtn.Parent = Frame
 
--- Status label
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, -16, 0, 16)
 statusLabel.Position = UDim2.new(0, 8, 0, 184)
@@ -240,33 +223,42 @@ statusLabel.Font = Enum.Font.SourceSansItalic
 statusLabel.TextSize = 12
 statusLabel.Parent = Frame
 
--- Load saved config if exists
+-- Load saved config
+local running = false
 local saved = load_config()
 if saved then
     if saved.webhook then webhookBox.Text = tostring(saved.webhook) end
     if saved.minutes then minutesBox.Text = tostring(saved.minutes) end
+    if saved.running ~= nil then
+        running = saved.running
+        toggleBtn.Text = "Toggle: " .. (running and "ON" or "OFF")
+        statusLabel.Text = running and "Status: Running" or "Status: Paused"
+    end
 end
-
--- State
-local running = false
-local loop_thread = nil
 
 local function update_status(txt)
     pcall(function() statusLabel.Text = "Status: " .. txt end)
 end
 
--- Toggle handler
+-- Toggle handler (auto-save)
 toggleBtn.MouseButton1Click:Connect(function()
     running = not running
     toggleBtn.Text = "Toggle: " .. (running and "ON" or "OFF")
     update_status(running and "Running" or "Paused")
+    local cfg = {
+        webhook = webhookBox.Text,
+        minutes = tonumber(minutesBox.Text) or 0,
+        running = running
+    }
+    pcall(function() save_config(cfg) end)
 end)
 
--- Save handler
+-- Save config button
 saveBtn.MouseButton1Click:Connect(function()
     local cfg = {
         webhook = webhookBox.Text,
-        minutes = tonumber(minutesBox.Text) or 0
+        minutes = tonumber(minutesBox.Text) or 0,
+        running = running
     }
     local ok, err = save_config(cfg)
     if ok then
@@ -276,7 +268,7 @@ saveBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Send now handler
+-- Send now button
 sendNowBtn.MouseButton1Click:Connect(function()
     local url = webhookBox.Text
     update_status("Sending now...")
@@ -288,7 +280,7 @@ sendNowBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Background loop: periodically send while running
+-- Background loop
 spawn(function()
     while true do
         if running then
@@ -305,9 +297,7 @@ spawn(function()
                     update_status("Last send: Failed - " .. tostring(res))
                 end
             end
-            -- sleep for minutes (if minutes <= 0, don't loop rapidly; default 60s)
             local wait_seconds = (minutes > 0) and (minutes * 60) or 60
-            -- Wait while allowing toggling off quickly
             local elapsed = 0
             while elapsed < wait_seconds do
                 if not running then break end
@@ -320,7 +310,16 @@ spawn(function()
     end
 end)
 
--- Hint: show brief explanation in status
 update_status("Ready. Set webhook and minutes, then Toggle ON.")
 
--- Note: If executor or game blocks HTTP, the request will error. Ensure HTTP allowed and your executor supports http functions.
+--// Anti‑AFK Script
+--// Works on most executors
+
+local vu = game:GetService("VirtualUser")
+local plr = game:GetService("Players").LocalPlayer
+
+plr.Idled:Connect(function()
+    vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+end)
