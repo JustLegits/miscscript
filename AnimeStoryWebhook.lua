@@ -326,12 +326,6 @@ if vfx then
     vfx:Destroy()
 end
 
--- Delete UI folder
-local ui = rs:FindFirstChild("UI")
-if ui then
-    ui:Destroy()
-end
-
 --// Anti‑AFK Script
 
 local vu = game:GetService("VirtualUser")
