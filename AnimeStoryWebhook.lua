@@ -5,6 +5,11 @@
 --   2) Player Level (leaderstats.Level)
 --   3) Total Gems (LocalPlayer.Data.Gems)
 --   4) Total Coins (LocalPlayer.Data.Coins)
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+wait(math.random())
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -312,8 +317,22 @@ end)
 
 update_status("Ready. Set webhook and minutes, then Toggle ON.")
 
+--// Reduce Lag
+local rs = game:GetService("ReplicatedStorage")
+
+-- Delete VFX folder
+local vfx = rs:FindFirstChild("VFX")
+if vfx then
+    vfx:Destroy()
+end
+
+-- Delete UI folder
+local ui = rs:FindFirstChild("UI")
+if ui then
+    ui:Destroy()
+end
+
 --// Anti‑AFK Script
---// Works on most executors
 
 local vu = game:GetService("VirtualUser")
 local plr = game:GetService("Players").LocalPlayer
