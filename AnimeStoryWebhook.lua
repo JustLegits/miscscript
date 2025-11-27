@@ -396,4 +396,4 @@ _G.Settings = {
     }
 }
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/CasperFlyModz/discord.gg-rips/main/FPSBooster.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/FPSBooster.lua"))()
