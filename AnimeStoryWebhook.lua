@@ -342,3 +342,58 @@ plr.Idled:Connect(function()
     task.wait(1)
     vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
 end)
+
+--// Anti lag
+
+_G.Settings = {
+    Players = {
+        ["Ignore Me"] = true,
+        ["Ignore Others"] = true,
+        ["Ignore Tools"] = true
+    },
+    Meshes = {
+        NoMesh = false,
+        NoTexture = false,
+        Destroy = false
+    },
+    Images = {
+        Invisible = true,
+        Destroy = false
+    },
+    Explosions = {
+        Smaller = true,
+        Invisible = true, -- Not recommended for PVP games
+        Destroy = true-- Not recommended for PVP games
+    },
+    Particles = {
+        Invisible = true,
+        Destroy = true
+    },
+    TextLabels = {
+        LowerQuality = false,
+        Invisible = false,
+        Destroy = false
+    },
+    MeshParts = {
+        LowerQuality = true,
+        Invisible = false,
+        NoTexture = false,
+        NoMesh = false,
+        Destroy = false
+    },
+    Other = {
+        ["FPS Cap"] = false, -- Set this true to uncap FPS
+        ["No Camera Effects"] = true,
+        ["No Clothes"] = true,
+        ["Low Water Graphics"] = true,
+        ["No Shadows"] = true,
+        ["Low Rendering"] = true,
+        ["Low Quality Parts"] = true,
+        ["Low Quality Models"] = true,
+        ["Reset Materials"] = true,
+        ["Lower Quality MeshParts"] = true,
+        ClearNilInstances = false -- NEW (EXPERIMENTAL)
+    }
+}
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/CasperFlyModz/discord.gg-rips/main/FPSBooster.lua"))()
