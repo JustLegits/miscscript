@@ -23,7 +23,7 @@ local config = {
     delay = 5,
     enabled = false,
     antiafk = true,
-    minimized = false
+    minimized = true
 }
 
 -- Load config
@@ -116,7 +116,7 @@ Frame.Draggable = true
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.Text = "Webhook Sender"
+Title.Text = "Anime Story Webhook"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
