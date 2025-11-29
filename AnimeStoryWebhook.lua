@@ -22,7 +22,8 @@ local config = {
     webhook = "",
     delay = 5,
     enabled = false,
-    antiafk = true
+    antiafk = true,
+    minimized = false
 }
 
 -- Load config
@@ -120,6 +121,16 @@ Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 
+-- Minimize Button
+local MinBtn = Instance.new("TextButton", Frame)
+MinBtn.Size = UDim2.new(0, 30, 0, 30)
+MinBtn.Position = UDim2.new(1, -35, 0, 0)
+MinBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+MinBtn.Text = "-"
+MinBtn.TextColor3 = Color3.new(1,1,1)
+MinBtn.Font = Enum.Font.SourceSansBold
+MinBtn.TextSize = 24
+
 -- Webhook Box
 local WebhookBox = Instance.new("TextBox", Frame)
 WebhookBox.Size = UDim2.new(1, -20, 0, 30)
@@ -128,6 +139,9 @@ WebhookBox.PlaceholderText = "Enter Webhook Link"
 WebhookBox.Text = config.webhook
 WebhookBox.TextColor3 = Color3.new(1,1,1)
 WebhookBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+WebhookBox.ClearTextOnFocus = false
+WebhookBox.TextWrapped = false
+WebhookBox.MultiLine = false
 
 -- Delay Box
 local DelayBox = Instance.new("TextBox", Frame)
@@ -137,6 +151,9 @@ DelayBox.PlaceholderText = "Delay (minutes)"
 DelayBox.Text = tostring(config.delay)
 DelayBox.TextColor3 = Color3.new(1,1,1)
 DelayBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+DelayBox.ClearTextOnFocus = false
+DelayBox.TextWrapped = false
+DelayBox.MultiLine = false
 
 -- Toggle
 local Toggle = Instance.new("TextButton", Frame)
@@ -185,6 +202,39 @@ Save.MouseButton1Click:Connect(function()
     config.delay = tonumber(DelayBox.Text) or 1
     SaveConfig()
 end)
+
+-- Minimized
+local minimized = config.minimized
+
+local function ApplyMinimizeState()
+    if minimized then
+        for _, ui in ipairs(Frame:GetChildren()) do
+            if ui ~= Title and ui ~= MinBtn then
+                ui.Visible = false
+            end
+        end
+
+        Frame.Size = UDim2.new(0, 300, 0, 30)
+        MinBtn.Text = "+"
+    else
+        for _, ui in ipairs(Frame:GetChildren()) do
+            ui.Visible = true
+        end
+
+        Frame.Size = UDim2.new(0, 300, 0, 230)
+        MinBtn.Text = "-"
+    end
+end
+-- Apply state on load
+ApplyMinimizeState()
+
+MinBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    config.minimized = minimized
+    SaveConfig()
+    ApplyMinimizeState()
+end)
+
 
 --// Reduce Lag
 local rs = game:GetService("ReplicatedStorage")
