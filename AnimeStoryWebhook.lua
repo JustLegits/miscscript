@@ -11,328 +11,185 @@ end
 
 wait(math.random())
 
-local HttpService = game:GetService("HttpService")
+--// Services
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+local plr = Players.LocalPlayer
 
--- Config / storage
-local CONFIG_FILE = "webhook_config.txt" -- JSON: { webhook = "...", minutes = 5, running = true/false }
+--// Config Save
+local configFile = "webhook_config.json"
+local config = {
+    webhook = "",
+    delay = 5,
+    enabled = false,
+    antiafk = true
+}
 
--- Helper: safe request function (works with many executors)
-local function http_post_json(url, data_table)
-    local body = HttpService:JSONEncode(data_table)
-    local headers = {
-        ["Content-Type"] = "application/json"
+-- Load config
+pcall(function()
+    if isfile(configFile) then
+        config = HttpService:JSONDecode(readfile(configFile))
+    end
+end)
+
+-- Save config function
+local function SaveConfig()
+    writefile(configFile, HttpService:JSONEncode(config))
+end
+
+--// Anti-AFK (toggleable)
+local vu = game:GetService("VirtualUser")
+plr.Idled:Connect(function()
+    if config.antiafk then
+        vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    end
+end)
+
+--// Webhook Sender (with embed)
+local function SendWebhook()
+    if config.webhook == "" then return end
+
+    local leaderstats = plr:FindFirstChild("leaderstats")
+    local data = plr:FindFirstChild("Data")
+
+    local level = leaderstats and leaderstats:FindFirstChild("Level") and leaderstats.Level.Value or "N/A"
+    local gems = data and data:FindFirstChild("Gems") and data.Gems.Value or "N/A"
+    local coins = data and data:FindFirstChild("Coins") and data.Coins.Value or "N/A"
+
+    local timeSent = os.date("%Y-%m-%d %H:%M:%S")
+
+    local embed = {
+        ["title"] = "Anime Story",
+        ["type"] = "rich",
+        ["color"] = tonumber(0x00B2FF),
+        ["fields"] = {
+            {
+                ["name"] = "**Player Infos**",
+                ["value"] = "User: " .. plr.Name .. "\nLevels: " .. tostring(level),
+                ["inline"] = false
+            },
+            {
+                ["name"] = "**Player Stats**",
+                ["value"] = "Gems: " .. tostring(gems) .. "\nGolds: " .. tostring(coins),
+                ["inline"] = false
+            },
+            {
+                ["name"] = "**Send at**",
+                ["value"] = timeSent,
+                ["inline"] = false
+            }
+        }
     }
 
-    local req = nil
-    if syn and syn.request then
-        req = syn.request({Url = url, Method = "POST", Headers = headers, Body = body})
-        return req
-    elseif request then
-        req = request({Url = url, Method = "POST", Headers = headers, Body = body})
-        return req
-    elseif http_request then
-        req = http_request({Url = url, Method = "POST", Headers = headers, Body = body})
-        return req
-    else
-        error("No supported http request function found (syn.request / request / http_request).")
-    end
+    request({
+        Url = config.webhook,
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json"},
+        Body = HttpService:JSONEncode({embeds = {embed}})
+    })
 end
 
--- Build message content (with spoiler for name)
-local function build_content()
-    local success, level = pcall(function()
-        return tostring(LocalPlayer:WaitForChild("leaderstats"):FindFirstChild("Level").Value)
-    end)
-    if not success or not level then
-        level = "N/A"
-    end
-
-    local gems = "N/A"
-    pcall(function()
-        local data = LocalPlayer:FindFirstChild("Data")
-        if data and data:FindFirstChild("Gems") then
-            gems = tostring(data.Gems.Value)
+--// Auto Loop Handler
+task.spawn(function()
+    while task.wait(1) do
+        if config.enabled then
+            SendWebhook()
+            task.wait(config.delay * 60)
         end
-    end)
-
-    local coins = "N/A"
-    pcall(function()
-        local data = LocalPlayer:FindFirstChild("Data")
-        if data and data:FindFirstChild("Coins") then
-            coins = tostring(data.Coins.Value)
-        end
-    end)
-
-    local name_spoiler = "||" .. tostring(LocalPlayer.Name) .. "||"
-
-    local content = string.format("%s\nPlayer Level: %s\nTotal Gems: %s\nTotal Coins: %s",
-        name_spoiler, level, gems, coins)
-
-    return content
-end
-
-local function send_to_webhook(webhook_url)
-    if not webhook_url or webhook_url == "" then
-        return false, "Webhook URL empty."
     end
-    local content = build_content()
-    local ok, res = pcall(function()
-        return http_post_json(webhook_url, { content = content })
-    end)
-    if not ok then
-        return false, ("Request failed: %s"):format(tostring(res))
-    end
-    if type(res) == "table" and (res.Success == true or res.StatusCode == 204 or res.StatusCode == 200) then
-        return true, res
-    end
-    return true, res
-end
+end)
 
--- Simple file save/load
-local function save_config(cfg)
-    local ok, err = pcall(function()
-        local raw = HttpService:JSONEncode(cfg)
-        if writefile then
-            writefile(CONFIG_FILE, raw)
-        else
-            error("writefile not available in this executor")
-        end
-    end)
-    return ok, err
-end
-
-local function load_config()
-    local ok, val = pcall(function()
-        if readfile and isfile and isfile(CONFIG_FILE) then
-            local raw = readfile(CONFIG_FILE)
-            return HttpService:JSONDecode(raw)
-        end
-        return nil
-    end)
-    if ok then
-        return val
-    end
-    return nil
-end
-
--- GUI creation
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "WebhookSenderGUI"
+--// GUI
+local ScreenGui = Instance.new("ScreenGui", plr.PlayerGui)
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = game:GetService("CoreGui")
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 360, 0, 200)
-Frame.Position = UDim2.new(0.5, -180, 0.5, -100)
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 300, 0, 230)
+Frame.Position = UDim2.new(0.35, 0, 0.3, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
 Frame.Active = true
 Frame.Draggable = true
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 28)
-Title.BackgroundTransparency = 1
-Title.Text = "Discord Webhook Sender"
-Title.TextColor3 = Color3.new(1,1,1)
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Title.Text = "Webhook Sender"
+Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 18
-Title.Parent = Frame
+Title.TextSize = 20
 
-local webhookLabel = Instance.new("TextLabel")
-webhookLabel.Size = UDim2.new(1, -16, 0, 18)
-webhookLabel.Position = UDim2.new(0, 8, 0, 36)
-webhookLabel.BackgroundTransparency = 1
-webhookLabel.Text = "Webhook URL:"
-webhookLabel.TextXAlignment = Enum.TextXAlignment.Left
-webhookLabel.TextColor3 = Color3.new(1,1,1)
-webhookLabel.Font = Enum.Font.SourceSans
-webhookLabel.TextSize = 14
-webhookLabel.Parent = Frame
+-- Webhook Box
+local WebhookBox = Instance.new("TextBox", Frame)
+WebhookBox.Size = UDim2.new(1, -20, 0, 30)
+WebhookBox.Position = UDim2.new(0, 10, 0, 40)
+WebhookBox.PlaceholderText = "Enter Webhook Link"
+WebhookBox.Text = config.webhook
+WebhookBox.TextColor3 = Color3.new(1,1,1)
+WebhookBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 
-local webhookBox = Instance.new("TextBox")
-webhookBox.Size = UDim2.new(1, -16, 0, 28)
-webhookBox.Position = UDim2.new(0, 8, 0, 56)
-webhookBox.PlaceholderText = "https://discord.com/api/webhooks/..."
-webhookBox.ClearTextOnFocus = false
-webhookBox.BackgroundColor3 = Color3.fromRGB(45,45,45)
-webhookBox.TextColor3 = Color3.new(1,1,1)
-webhookBox.Text = ""
-webhookBox.Font = Enum.Font.SourceSans
-webhookBox.TextSize = 14
-webhookBox.Parent = Frame
+-- Delay Box
+local DelayBox = Instance.new("TextBox", Frame)
+DelayBox.Size = UDim2.new(1, -20, 0, 30)
+DelayBox.Position = UDim2.new(0, 10, 0, 80)
+DelayBox.PlaceholderText = "Delay (minutes)"
+DelayBox.Text = tostring(config.delay)
+DelayBox.TextColor3 = Color3.new(1,1,1)
+DelayBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 
-local minutesLabel = Instance.new("TextLabel")
-minutesLabel.Size = UDim2.new(0.5, -12, 0, 18)
-minutesLabel.Position = UDim2.new(0, 8, 0, 92)
-minutesLabel.BackgroundTransparency = 1
-minutesLabel.Text = "Minutes delay:"
-minutesLabel.TextXAlignment = Enum.TextXAlignment.Left
-minutesLabel.TextColor3 = Color3.new(1,1,1)
-minutesLabel.Font = Enum.Font.SourceSans
-minutesLabel.TextSize = 14
-minutesLabel.Parent = Frame
+-- Toggle
+local Toggle = Instance.new("TextButton", Frame)
+Toggle.Size = UDim2.new(1, -20, 0, 30)
+Toggle.Position = UDim2.new(0, 10, 0, 120)
+Toggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.Font = Enum.Font.SourceSansBold
+Toggle.TextSize = 18
+Toggle.Text = config.enabled and "Status: ON" or "Status: OFF"
 
-local minutesBox = Instance.new("TextBox")
-minutesBox.Size = UDim2.new(0.5, -12, 0, 28)
-minutesBox.Position = UDim2.new(0, 8, 0, 112)
-minutesBox.PlaceholderText = "e.g. 5"
-minutesBox.ClearTextOnFocus = false
-minutesBox.BackgroundColor3 = Color3.fromRGB(45,45,45)
-minutesBox.TextColor3 = Color3.new(1,1,1)
-minutesBox.Text = "5"
-minutesBox.Font = Enum.Font.SourceSans
-minutesBox.TextSize = 14
-minutesBox.Parent = Frame
-
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0.5, -12, 0, 28)
-toggleBtn.Position = UDim2.new(0.5, 4, 0, 112)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-toggleBtn.TextColor3 = Color3.new(1,1,1)
-toggleBtn.Text = "Toggle: OFF"
-toggleBtn.Font = Enum.Font.SourceSansBold
-toggleBtn.TextSize = 14
-toggleBtn.Parent = Frame
-
-local saveBtn = Instance.new("TextButton")
-saveBtn.Size = UDim2.new(0.5, -12, 0, 28)
-saveBtn.Position = UDim2.new(0, 8, 0, 150)
-saveBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-saveBtn.TextColor3 = Color3.new(1,1,1)
-saveBtn.Text = "Save Config"
-saveBtn.Font = Enum.Font.SourceSans
-saveBtn.TextSize = 14
-saveBtn.Parent = Frame
-
-local sendNowBtn = Instance.new("TextButton")
-sendNowBtn.Size = UDim2.new(0.5, -12, 0, 28)
-sendNowBtn.Position = UDim2.new(0.5, 4, 0, 150)
-sendNowBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-sendNowBtn.TextColor3 = Color3.new(1,1,1)
-sendNowBtn.Text = "Send Now"
-sendNowBtn.Font = Enum.Font.SourceSans
-sendNowBtn.TextSize = 14
-sendNowBtn.Parent = Frame
-
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -16, 0, 16)
-statusLabel.Position = UDim2.new(0, 8, 0, 184)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Status: Idle"
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-statusLabel.TextColor3 = Color3.new(1,1,1)
-statusLabel.Font = Enum.Font.SourceSansItalic
-statusLabel.TextSize = 12
-statusLabel.Parent = Frame
-
--- Load saved config
-local running = false
-local saved = load_config()
-if saved then
-    if saved.webhook then webhookBox.Text = tostring(saved.webhook) end
-    if saved.minutes then minutesBox.Text = tostring(saved.minutes) end
-    if saved.running ~= nil then
-        running = saved.running
-        toggleBtn.Text = "Toggle: " .. (running and "ON" or "OFF")
-        statusLabel.Text = running and "Status: Running" or "Status: Paused"
-    end
-end
-
-local function update_status(txt)
-    pcall(function() statusLabel.Text = "Status: " .. txt end)
-end
-
--- Toggle handler (auto-save)
-toggleBtn.MouseButton1Click:Connect(function()
-    running = not running
-    toggleBtn.Text = "Toggle: " .. (running and "ON" or "OFF")
-    update_status(running and "Running" or "Paused")
-    local cfg = {
-        webhook = webhookBox.Text,
-        minutes = tonumber(minutesBox.Text) or 0,
-        running = running
-    }
-    pcall(function() save_config(cfg) end)
+Toggle.MouseButton1Click:Connect(function()
+    config.enabled = not config.enabled
+    Toggle.Text = config.enabled and "Status: ON" or "Status: OFF"
+    SaveConfig()
 end)
 
--- Save config button
-saveBtn.MouseButton1Click:Connect(function()
-    local cfg = {
-        webhook = webhookBox.Text,
-        minutes = tonumber(minutesBox.Text) or 0,
-        running = running
-    }
-    local ok, err = save_config(cfg)
-    if ok then
-        update_status("Config saved.")
-    else
-        update_status("Save failed: " .. tostring(err))
-    end
+-- Anti-AFK Toggle
+local AAToggle = Instance.new("TextButton", Frame)
+AAToggle.Size = UDim2.new(1, -20, 0, 30)
+AAToggle.Position = UDim2.new(0, 10, 0, 160)
+AAToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+AAToggle.TextColor3 = Color3.new(1,1,1)
+AAToggle.Font = Enum.Font.SourceSansBold
+AAToggle.TextSize = 18
+AAToggle.Text = config.antiafk and "Anti-AFK: ON" or "Anti-AFK: OFF"
+
+AAToggle.MouseButton1Click:Connect(function()
+    config.antiafk = not config.antiafk
+    AAToggle.Text = config.antiafk and "Anti-AFK: ON" or "Anti-AFK: OFF"
+    SaveConfig()
 end)
 
--- Send now button
-sendNowBtn.MouseButton1Click:Connect(function()
-    local url = webhookBox.Text
-    update_status("Sending now...")
-    local ok, res = send_to_webhook(url)
-    if ok then
-        update_status("Sent successfully.")
-    else
-        update_status("Send failed: " .. tostring(res))
-    end
-end)
+-- Save Button
+local Save = Instance.new("TextButton", Frame)
+Save.Size = UDim2.new(1, -20, 0, 30)
+Save.Position = UDim2.new(0, 10, 0, 200)
+Save.BackgroundColor3 = Color3.fromRGB(120, 60, 255)
+Save.TextColor3 = Color3.new(1,1,1)
+Save.Font = Enum.Font.SourceSansBold
+Save.TextSize = 18
+Save.Text = "Save Config"
 
--- Background loop
-spawn(function()
-    while true do
-        if running then
-            local url = webhookBox.Text
-            local minutes = tonumber(minutesBox.Text) or 0
-            if not url or url == "" then
-                update_status("No webhook set.")
-            else
-                update_status("Sending...")
-                local ok, res = send_to_webhook(url)
-                if ok then
-                    update_status("Last send: OK at " .. os.date("%X"))
-                else
-                    update_status("Last send: Failed - " .. tostring(res))
-                end
-            end
-            local wait_seconds = (minutes > 0) and (minutes * 60) or 60
-            local elapsed = 0
-            while elapsed < wait_seconds do
-                if not running then break end
-                wait(1)
-                elapsed = elapsed + 1
-            end
-        else
-            wait(0.5)
-        end
-    end
+Save.MouseButton1Click:Connect(function()
+    config.webhook = WebhookBox.Text
+    config.delay = tonumber(DelayBox.Text) or 1
+    SaveConfig()
 end)
-
-update_status("Ready. Set webhook and minutes, then Toggle ON.")
 
 --// Reduce Lag
 local rs = game:GetService("ReplicatedStorage")
-
 -- Delete VFX folder
 local vfx = rs:FindFirstChild("VFX")
 if vfx then
     vfx:Destroy()
 end
-
---// Anti‑AFK Script
-
-local vu = game:GetService("VirtualUser")
-local plr = game:GetService("Players").LocalPlayer
-
-plr.Idled:Connect(function()
-    vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    task.wait(1)
-    vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-end)
