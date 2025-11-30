@@ -251,7 +251,7 @@ if vfx then
     end
 end
 -- Delete Animations folder
-local anm = rs:FindFirstChild("Animations")
-if anm then
-    anm:Destroy()
+--local anm = rs:FindFirstChild("Animations")
+--if anm then
+--    anm:Destroy()
 end
