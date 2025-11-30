@@ -235,23 +235,3 @@ MinBtn.MouseButton1Click:Connect(function()
     ApplyMinimizeState()
 end)
 
---// Reduce Lag
-local rs = game:GetService("ReplicatedStorage")
--- VFX folder
-local vfx = rs:FindFirstChild("VFX")
-local keep = {
-    ["Summon"] = true, 
-    -- add more here
-}
-if vfx then
-    for _, obj in ipairs(vfx:GetChildren()) do
-        if not keep[obj.Name] then
-            obj:Destroy()
-        end
-    end
-end
--- Delete Animations folder
---local anm = rs:FindFirstChild("Animations")
---if anm then
---    anm:Destroy()
-end
