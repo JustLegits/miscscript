@@ -102,6 +102,43 @@ task.spawn(function()
     end
 end)
 
+--// Reduce Lag: VFX Remover
+local function RemoveVFX()
+    local rs = game:GetService("ReplicatedStorage")
+    local vfx = rs:FindFirstChild("VFX")
+
+    local keep = {
+        ["Summon"] = true,
+        -- you can add more here
+    }
+
+    if vfx then
+        for _, obj in ipairs(vfx:GetChildren()) do
+            if not keep[obj.Name] then
+                obj:Destroy()
+            end
+        end
+    end
+end
+-- Remove damage text
+    local uiFolder = rs:FindFirstChild("UI")
+    if uiFolder then
+        local dmg = uiFolder:FindFirstChild("Damage")
+        if dmg then
+            dmg:Destroy()
+        end
+    end
+end
+--// Reduce Lag: Animation Folder Remover
+local function RemoveAnimations()
+    local rs = game:GetService("ReplicatedStorage")
+    local anm = rs:FindFirstChild("Animations")
+
+    if anm then
+        anm:Destroy()
+    end
+end
+
 --// GUI
 local ScreenGui = Instance.new("ScreenGui", plr.PlayerGui)
 ScreenGui.ResetOnSpawn = false
@@ -187,10 +224,42 @@ AAToggle.MouseButton1Click:Connect(function()
     SaveConfig()
 end)
 
+-- Row Frame to hold two buttons
+local RowFrame = Instance.new("Frame", Frame)
+RowFrame.Size = UDim2.new(1, -20, 0, 30)
+RowFrame.Position = UDim2.new(0, 10, 0, 200)  -- Adjust if Save Button is using this space
+RowFrame.BackgroundTransparency = 1
+
+-- VFX Button
+local VFXBtn = Instance.new("TextButton", RowFrame)
+VFXBtn.Size = UDim2.new(0.5, -5, 1, 0)
+VFXBtn.Position = UDim2.new(0, 0, 0, 0)
+VFXBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+VFXBtn.TextColor3 = Color3.new(1,1,1)
+VFXBtn.Text = "Remove VFX"
+VFXBtn.Font = Enum.Font.SourceSansBold
+VFXBtn.TextSize = 18
+-- Anim Button
+local AnimBtn = Instance.new("TextButton", RowFrame)
+AnimBtn.Size = UDim2.new(0.5, -5, 1, 0)
+AnimBtn.Position = UDim2.new(0.5, 5, 0, 0)
+AnimBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+AnimBtn.TextColor3 = Color3.new(1,1,1)
+AnimBtn.Text = "Remove Anim"
+AnimBtn.Font = Enum.Font.SourceSansBold
+AnimBtn.TextSize = 18
+-- Connect Actions
+VFXBtn.MouseButton1Click:Connect(function()
+    RemoveVFX()
+end)
+AnimBtn.MouseButton1Click:Connect(function()
+    RemoveAnimations()
+end)
+
 -- Save Button
 local Save = Instance.new("TextButton", Frame)
 Save.Size = UDim2.new(1, -20, 0, 30)
-Save.Position = UDim2.new(0, 10, 0, 200)
+Save.Position = UDim2.new(0, 10, 0, 240)
 Save.BackgroundColor3 = Color3.fromRGB(120, 60, 255)
 Save.TextColor3 = Color3.new(1,1,1)
 Save.Font = Enum.Font.SourceSansBold
