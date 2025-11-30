@@ -234,12 +234,3 @@ MinBtn.MouseButton1Click:Connect(function()
     SaveConfig()
     ApplyMinimizeState()
 end)
-
-
---// Reduce Lag
-local rs = game:GetService("ReplicatedStorage")
--- Delete VFX folder
-local vfx = rs:FindFirstChild("VFX")
-if vfx then
-    vfx:Destroy()
-end
