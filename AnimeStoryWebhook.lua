@@ -105,11 +105,11 @@ end)
 --// Reduce Lag: VFX Remover
 local function RemoveVFX()
     local rs = game:GetService("ReplicatedStorage")
-    local vfx = rs:FindFirstChild("VFX")
 
+    -- Remove contents of VFX folder except "Summon"
+    local vfx = rs:FindFirstChild("VFX")
     local keep = {
         ["Summon"] = true,
-        -- you can add more here
     }
 
     if vfx then
@@ -119,8 +119,8 @@ local function RemoveVFX()
             end
         end
     end
-end
--- Remove damage text
+
+    -- Remove UI Damage text
     local uiFolder = rs:FindFirstChild("UI")
     if uiFolder then
         local dmg = uiFolder:FindFirstChild("Damage")
@@ -129,6 +129,7 @@ end
         end
     end
 end
+
 --// Reduce Lag: Animation Folder Remover
 local function RemoveAnimations()
     local rs = game:GetService("ReplicatedStorage")
@@ -144,7 +145,7 @@ local ScreenGui = Instance.new("ScreenGui", plr.PlayerGui)
 ScreenGui.ResetOnSpawn = false
 
 local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 300, 0, 230)
+Frame.Size = UDim2.new(0, 300, 0, 270)
 Frame.Position = UDim2.new(0.35, 0, 0.3, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Frame.Active = true
