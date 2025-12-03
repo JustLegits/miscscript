@@ -1,10 +1,6 @@
 -- Roblox Discord Webhook Sender (Delta / common executors)
--- Features: movable GUI, webhook input, minutes delay, toggle on/off (saved), save config, send now
--- Sends:
---   1) Player Name in Discord spoiler tags (||Name||)
---   2) Player Level (leaderstats.Level)
---   3) Total Gems (LocalPlayer.Data.Gems)
---   4) Total Coins (LocalPlayer.Data.Coins)
+-- Updated with Heartbeat Monitor (Healthchecks.io)
+
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -17,9 +13,10 @@ local HttpService = game:GetService("HttpService")
 local plr = Players.LocalPlayer
 
 --// Config Save
-local configFile = "webhook_config.json"
+local configFile = "webhook_config_v2.json" -- Changed name to avoid conflict with old config
 local config = {
     webhook = "",
+    heartbeat = "", -- New Config Field
     delay = 5,
     enabled = false,
     antiafk = true,
@@ -50,46 +47,57 @@ end)
 
 --// Webhook Sender (with embed)
 local function SendWebhook()
-    if config.webhook == "" then return end
+    -- 1. Send to Discord
+    if config.webhook ~= "" then
+        local leaderstats = plr:FindFirstChild("leaderstats")
+        local data = plr:FindFirstChild("Data")
 
-    local leaderstats = plr:FindFirstChild("leaderstats")
-    local data = plr:FindFirstChild("Data")
+        local level = leaderstats and leaderstats:FindFirstChild("Level") and leaderstats.Level.Value or "N/A"
+        local gems = data and data:FindFirstChild("Gems") and data.Gems.Value or "N/A"
+        local coins = data and data:FindFirstChild("Coins") and data.Coins.Value or "N/A"
 
-    local level = leaderstats and leaderstats:FindFirstChild("Level") and leaderstats.Level.Value or "N/A"
-    local gems = data and data:FindFirstChild("Gems") and data.Gems.Value or "N/A"
-    local coins = data and data:FindFirstChild("Coins") and data.Coins.Value or "N/A"
+        local timeSent = os.date("%Y-%m-%d %H:%M:%S")
 
-    local timeSent = os.date("%Y-%m-%d %H:%M:%S")
-
-    local embed = {
-        ["title"] = "Anime Story",
-        ["type"] = "rich",
-        ["color"] = tonumber(0x00B2FF),
-        ["fields"] = {
-            {
-                ["name"] = "**Player Infos**",
-                ["value"] = "User: " .. plr.Name .. "\nLevels: " .. tostring(level),
-                ["inline"] = false
-            },
-            {
-                ["name"] = "**Player Stats**",
-                ["value"] = "Gems: " .. tostring(gems) .. "\nGolds: " .. tostring(coins),
-                ["inline"] = false
-            },
-            {
-                ["name"] = "**Send at**",
-                ["value"] = timeSent,
-                ["inline"] = false
+        local embed = {
+            ["title"] = "Anime Story",
+            ["type"] = "rich",
+            ["color"] = tonumber(0x00B2FF),
+            ["fields"] = {
+                {
+                    ["name"] = "**Player Infos**",
+                    ["value"] = "User: " .. plr.Name .. "\nLevels: " .. tostring(level),
+                    ["inline"] = false
+                },
+                {
+                    ["name"] = "**Player Stats**",
+                    ["value"] = "Gems: " .. tostring(gems) .. "\nGolds: " .. tostring(coins),
+                    ["inline"] = false
+                },
+                {
+                    ["name"] = "**Send at**",
+                    ["value"] = timeSent,
+                    ["inline"] = false
+                }
             }
         }
-    }
 
-    request({
-        Url = config.webhook,
-        Method = "POST",
-        Headers = {["Content-Type"] = "application/json"},
-        Body = HttpService:JSONEncode({embeds = {embed}})
-    })
+        request({
+            Url = config.webhook,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({embeds = {embed}})
+        })
+    end
+
+    -- 2. Send Heartbeat Ping (The Dead Man's Switch)
+    if config.heartbeat and config.heartbeat ~= "" then
+        pcall(function()
+            request({
+                Url = config.heartbeat,
+                Method = "GET"
+            })
+        end)
+    end
 end
 
 --// Auto Loop Handler
@@ -102,50 +110,35 @@ task.spawn(function()
     end
 end)
 
---// Reduce Lag: VFX Remover
+--// Reduce Lag Functions
 local function RemoveVFX()
     local rs = game:GetService("ReplicatedStorage")
-
-    -- Remove contents of VFX folder except "Summon"
     local vfx = rs:FindFirstChild("VFX")
-    local keep = {
-        ["Summon"] = true,
-    }
-
+    local keep = { ["Summon"] = true }
     if vfx then
         for _, obj in ipairs(vfx:GetChildren()) do
-            if not keep[obj.Name] then
-                obj:Destroy()
-            end
+            if not keep[obj.Name] then obj:Destroy() end
         end
     end
-
-    -- Remove UI Damage text
     local uiFolder = rs:FindFirstChild("UI")
     if uiFolder then
         local dmg = uiFolder:FindFirstChild("Damage")
-        if dmg then
-            dmg:Destroy()
-        end
+        if dmg then dmg:Destroy() end
     end
 end
 
---// Reduce Lag: Animation Folder Remover
 local function RemoveAnimations()
     local rs = game:GetService("ReplicatedStorage")
     local anm = rs:FindFirstChild("Animations")
-
-    if anm then
-        anm:Destroy()
-    end
+    if anm then anm:Destroy() end
 end
 
---// GUI
+--// GUI SETUP
 local ScreenGui = Instance.new("ScreenGui", plr.PlayerGui)
 ScreenGui.ResetOnSpawn = false
 
 local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 300, 0, 270)
+Frame.Size = UDim2.new(0, 300, 0, 310) -- Increased Height to fit new box
 Frame.Position = UDim2.new(0.35, 0, 0.3, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Frame.Active = true
@@ -159,7 +152,6 @@ Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 
--- Minimize Button
 local MinBtn = Instance.new("TextButton", Frame)
 MinBtn.Size = UDim2.new(0, 30, 0, 30)
 MinBtn.Position = UDim2.new(1, -35, 0, 0)
@@ -169,34 +161,40 @@ MinBtn.TextColor3 = Color3.new(1,1,1)
 MinBtn.Font = Enum.Font.SourceSansBold
 MinBtn.TextSize = 24
 
--- Webhook Box
+-- 1. Webhook Box
 local WebhookBox = Instance.new("TextBox", Frame)
 WebhookBox.Size = UDim2.new(1, -20, 0, 30)
 WebhookBox.Position = UDim2.new(0, 10, 0, 40)
-WebhookBox.PlaceholderText = "Enter Webhook Link"
+WebhookBox.PlaceholderText = "Enter Discord Webhook Link"
 WebhookBox.Text = config.webhook
 WebhookBox.TextColor3 = Color3.new(1,1,1)
 WebhookBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 WebhookBox.ClearTextOnFocus = false
-WebhookBox.TextWrapped = false
-WebhookBox.MultiLine = false
 
--- Delay Box
+-- 2. Heartbeat Box (NEW)
+local HeartbeatBox = Instance.new("TextBox", Frame)
+HeartbeatBox.Size = UDim2.new(1, -20, 0, 30)
+HeartbeatBox.Position = UDim2.new(0, 10, 0, 80)
+HeartbeatBox.PlaceholderText = "Enter Healthchecks.io URL"
+HeartbeatBox.Text = config.heartbeat or ""
+HeartbeatBox.TextColor3 = Color3.new(1,1,1)
+HeartbeatBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+HeartbeatBox.ClearTextOnFocus = false
+
+-- 3. Delay Box
 local DelayBox = Instance.new("TextBox", Frame)
 DelayBox.Size = UDim2.new(1, -20, 0, 30)
-DelayBox.Position = UDim2.new(0, 10, 0, 80)
+DelayBox.Position = UDim2.new(0, 10, 0, 120) -- Moved Down
 DelayBox.PlaceholderText = "Delay (minutes)"
 DelayBox.Text = tostring(config.delay)
 DelayBox.TextColor3 = Color3.new(1,1,1)
 DelayBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 DelayBox.ClearTextOnFocus = false
-DelayBox.TextWrapped = false
-DelayBox.MultiLine = false
 
--- Toggle
+-- 4. Toggle
 local Toggle = Instance.new("TextButton", Frame)
 Toggle.Size = UDim2.new(1, -20, 0, 30)
-Toggle.Position = UDim2.new(0, 10, 0, 120)
+Toggle.Position = UDim2.new(0, 10, 0, 160) -- Moved Down
 Toggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 Toggle.TextColor3 = Color3.new(1,1,1)
 Toggle.Font = Enum.Font.SourceSansBold
@@ -209,10 +207,10 @@ Toggle.MouseButton1Click:Connect(function()
     SaveConfig()
 end)
 
--- Anti-AFK Toggle
+-- 5. Anti-AFK Toggle
 local AAToggle = Instance.new("TextButton", Frame)
 AAToggle.Size = UDim2.new(1, -20, 0, 30)
-AAToggle.Position = UDim2.new(0, 10, 0, 160)
+AAToggle.Position = UDim2.new(0, 10, 0, 200) -- Moved Down
 AAToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 AAToggle.TextColor3 = Color3.new(1,1,1)
 AAToggle.Font = Enum.Font.SourceSansBold
@@ -225,22 +223,19 @@ AAToggle.MouseButton1Click:Connect(function()
     SaveConfig()
 end)
 
--- Row Frame to hold two buttons
+-- 6. Tools (VFX/Anim)
 local RowFrame = Instance.new("Frame", Frame)
 RowFrame.Size = UDim2.new(1, -20, 0, 30)
-RowFrame.Position = UDim2.new(0, 10, 0, 200)  -- Adjust if Save Button is using this space
+RowFrame.Position = UDim2.new(0, 10, 0, 240) -- Moved Down
 RowFrame.BackgroundTransparency = 1
 
--- VFX Button
 local VFXBtn = Instance.new("TextButton", RowFrame)
 VFXBtn.Size = UDim2.new(0.5, -5, 1, 0)
-VFXBtn.Position = UDim2.new(0, 0, 0, 0)
 VFXBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 VFXBtn.TextColor3 = Color3.new(1,1,1)
 VFXBtn.Text = "Remove VFX"
 VFXBtn.Font = Enum.Font.SourceSansBold
 VFXBtn.TextSize = 18
--- Anim Button
 local AnimBtn = Instance.new("TextButton", RowFrame)
 AnimBtn.Size = UDim2.new(0.5, -5, 1, 0)
 AnimBtn.Position = UDim2.new(0.5, 5, 0, 0)
@@ -249,18 +244,14 @@ AnimBtn.TextColor3 = Color3.new(1,1,1)
 AnimBtn.Text = "Remove Anim"
 AnimBtn.Font = Enum.Font.SourceSansBold
 AnimBtn.TextSize = 18
--- Connect Actions
-VFXBtn.MouseButton1Click:Connect(function()
-    RemoveVFX()
-end)
-AnimBtn.MouseButton1Click:Connect(function()
-    RemoveAnimations()
-end)
 
--- Save Button
+VFXBtn.MouseButton1Click:Connect(function() RemoveVFX() end)
+AnimBtn.MouseButton1Click:Connect(function() RemoveAnimations() end)
+
+-- 7. Save Button
 local Save = Instance.new("TextButton", Frame)
 Save.Size = UDim2.new(1, -20, 0, 30)
-Save.Position = UDim2.new(0, 10, 0, 240)
+Save.Position = UDim2.new(0, 10, 0, 280) -- Moved Down
 Save.BackgroundColor3 = Color3.fromRGB(120, 60, 255)
 Save.TextColor3 = Color3.new(1,1,1)
 Save.Font = Enum.Font.SourceSansBold
@@ -269,33 +260,26 @@ Save.Text = "Save Config"
 
 Save.MouseButton1Click:Connect(function()
     config.webhook = WebhookBox.Text
+    config.heartbeat = HeartbeatBox.Text -- Save new field
     config.delay = tonumber(DelayBox.Text) or 1
     SaveConfig()
 end)
 
--- Minimized
+-- Minimize Logic
 local minimized = config.minimized
-
 local function ApplyMinimizeState()
     if minimized then
         for _, ui in ipairs(Frame:GetChildren()) do
-            if ui ~= Title and ui ~= MinBtn then
-                ui.Visible = false
-            end
+            if ui ~= Title and ui ~= MinBtn then ui.Visible = false end
         end
-
         Frame.Size = UDim2.new(0, 300, 0, 30)
         MinBtn.Text = "+"
     else
-        for _, ui in ipairs(Frame:GetChildren()) do
-            ui.Visible = true
-        end
-
-        Frame.Size = UDim2.new(0, 300, 0, 230)
+        for _, ui in ipairs(Frame:GetChildren()) do ui.Visible = true end
+        Frame.Size = UDim2.new(0, 300, 0, 320) -- Match new height
         MinBtn.Text = "-"
     end
 end
--- Apply state on load
 ApplyMinimizeState()
 
 MinBtn.MouseButton1Click:Connect(function()
@@ -304,4 +288,3 @@ MinBtn.MouseButton1Click:Connect(function()
     SaveConfig()
     ApplyMinimizeState()
 end)
-
