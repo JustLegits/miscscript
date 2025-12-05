@@ -235,10 +235,10 @@ def disable_bloatware_apps():
     print(Fore.LIGHTBLUE_EX + "Đang vô hiệu hóa các ứng dụng không cần thiết (safe list)...")
     apps_to_disable = [
         "com.wsh.toolkit", "com.wsh.appstorage", "com.wsh.launcher2", 
-        "com.og.toolcenter", "com.og.gamecenter", "com.og.launcher",
+        "com.og.toolcenter", "com.og.gamecenter",
         "com.wsh.appstore", "com.android.tools", 
         "net.sourceforge.opencamera",
-        # Gallery apps từ OEM
+        # Gallery apps từ OEM , "com.og.launcher"
         "com.sec.android.gallery3d", "com.miui.gallery", "com.coloros.gallery3d",
         "com.vivo.gallery", "com.motorola.gallery", "com.transsion.gallery",
         "com.sonyericsson.album", "com.lge.gallery", "com.htc.album", "com.huawei.photos",
