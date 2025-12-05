@@ -55,7 +55,28 @@ local function SendWebhook()
         local level = leaderstats and leaderstats:FindFirstChild("Level") and leaderstats.Level.Value or "N/A"
         local gems = data and data:FindFirstChild("Gems") and data.Gems.Value or "N/A"
         local coins = data and data:FindFirstChild("Coins") and data.Coins.Value or "N/A"
-
+        -- ▼▼ Trait Tokens ▼▼
+        local tokens = "N/A"
+        local inv = plr.PlayerGui:FindFirstChild("main")
+        if inv then
+            local inventory = inv:FindFirstChild("Inventory")
+            if inventory then
+                local base = inventory:FindFirstChild("Base")
+                if base then
+                    local content = base:FindFirstChild("Content")
+                    if content then
+                        local items = content:FindFirstChild("Items")
+                        if items then
+                            local trait = items:FindFirstChild("Trait Tokens")
+                            if trait and trait:FindFirstChild("Quantity") then
+                                tokens = trait.Quantity.Text
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        -- ▲▲ Trait Tokens ▲▲
         local timeSent = os.date("%Y-%m-%d %H:%M:%S")
 
         local embed = {
@@ -70,7 +91,9 @@ local function SendWebhook()
                 },
                 {
                     ["name"] = "**Player Stats**",
-                    ["value"] = "Gems: " .. tostring(gems) .. "\nGolds: " .. tostring(coins),
+                    ["value"] = "Gems: " .. tostring(gems)
+                       .. "\nGolds: " .. tostring(coins)
+                       .. "\nTrait Tokens: " .. tostring(tokens),
                     ["inline"] = false
                 },
                 {
