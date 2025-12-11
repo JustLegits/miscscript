@@ -35,7 +35,7 @@ local defaultConfig = {
     enabled = false,       -- sending on/off
     removevfx = false,     -- vfx toggle
     blackscreen = false,   -- black screen toggle (saved)
-    minimized = true,      -- minimize state (saved)
+    minimized = false,      -- minimize state (saved)
     traitShort = "TKN"     -- short label (not strictly necessary, kept for compatibility)
 }
 
