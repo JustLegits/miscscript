@@ -234,7 +234,3 @@ Collapse.MouseButton1Click:Connect(function()
 end)
 
 refresh_collapse()
-
--------------------------------------------------------
-
-If you want me to rearrange layout, recolor, shorten text, or add persistence for collapse state, tell me and I will update it.
