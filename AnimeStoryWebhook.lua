@@ -309,14 +309,31 @@ task.spawn(function()
 end)
 
 --==============================================================--
--- HIDE / UNHIDE BUTTON
+-- GLOBAL HIDE / SHOW BUTTON (ALWAYS VISIBLE)
 --==============================================================--
-local hidden = false
-HideBtn.MouseButton1Click:Connect(function()
+
+local ToggleGui = Instance.new("TextButton")
+ToggleGui.Name = "ToggleGUI"
+ToggleGui.Parent = ScreenGui
+ToggleGui.Size = UDim2.new(0, 80, 0, 30)
+ToggleGui.Position = UDim2.new(0, 20, 0, 120)
+ToggleGui.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ToggleGui.TextColor3 = Color3.fromRGB(255,255,255)
+ToggleGui.Font = Enum.Font.GothamBold
+ToggleGui.TextSize = 14
+ToggleGui.Text = "Show UI"
+ToggleGui.ZIndex = 999999  -- Always top layer
+
+-- GUI starts collapsed (hidden)
+local hidden = true
+Main.Visible = false
+
+ToggleGui.MouseButton1Click:Connect(function()
     hidden = not hidden
     Main.Visible = not hidden
-    HideBtn.Text = hidden and "Show" or "Hide"
+    ToggleGui.Text = hidden and "Show UI" or "Hide UI"
 end)
+
 
 --==============================================================--
 -- WEBHOOK SENDING LOOP (EMBED)
