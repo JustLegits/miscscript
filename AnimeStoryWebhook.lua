@@ -1,5 +1,5 @@
--- Roblox Webhook Sender (SAFE UI VERSION)
--- Fix lỗi mất UI game, Tối ưu Mobile, Auto Save
+-- Roblox Webhook Sender (ANTI-CRASH REQUEST VERSION)
+-- Fix: Tách biệt luồng Request để không làm mất UI Game khi Roblox chặn mạng
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -20,7 +20,7 @@ if not request then
 end
 
 --// Config Setup
-local configFile = "anime_story_config_safe_v3.json" 
+local configFile = "anime_story_config_v4_fixrequest.json" 
 local config = {
     webhook = "",
     heartbeat = "",
@@ -45,13 +45,10 @@ local function SaveConfig()
     writefile(configFile, HttpService:JSONEncode(config))
 end
 
---// 1. SAFE Anti-AFK (Dùng Nhảy thay vì Click chuột để tránh lỗi UI)
+--// 1. SAFE Anti-AFK
 plr.Idled:Connect(function()
     VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new()) -- Giả lập bấm nhẹ
-    -- Nếu vẫn bị kick, hãy dùng lệnh nhảy:
-    -- local char = plr.Character
-    -- if char and char:FindFirstChild("Humanoid") then char.Humanoid.Jump = true end
+    VirtualUser:ClickButton2(Vector2.new())
 end)
 
 --// 2. Black Screen Logic
@@ -80,7 +77,6 @@ BlackLabel.Text = "CPU Saver Mode (Black Screen)\nScript vẫn đang chạy..."
 BlackLabel.TextSize = 24
 BlackLabel.Font = Enum.Font.SourceSansBold
 
--- Nút TẮT trên màn hình đen
 local TurnOffBtn = Instance.new("TextButton", BlackFrame)
 TurnOffBtn.Name = "TurnOffBtn"
 TurnOffBtn.Size = UDim2.new(0, 250, 0, 40)
@@ -96,23 +92,15 @@ local function ToggleBlackScreen(state)
     RunService:Set3dRenderingEnabled(not state) 
 end
 
--- Hàm cập nhật trạng thái chung
 local function UpdateBlackScreenState(state)
     config.blackscreen = state
     ToggleBlackScreen(state)
-    
-    -- Update GUI (Tìm nút BlackBtn và đổi màu/text)
     pcall(function()
         local frame = ScreenGui:FindFirstChild("Frame")
-        if frame then
-            local row = frame:FindFirstChild("Row")
-            if row then
-                local btn = row:FindFirstChild("BlackBtn")
-                if btn then
-                    btn.Text = "Black Scrn: " .. (state and "ON" or "OFF")
-                    btn.BackgroundColor3 = state and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(70, 70, 70)
-                end
-            end
+        if frame and frame:FindFirstChild("Row") and frame.Row:FindFirstChild("BlackBtn") then
+            local btn = frame.Row.BlackBtn
+            btn.Text = "Black Scrn: " .. (state and "ON" or "OFF")
+            btn.BackgroundColor3 = state and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(70, 70, 70)
         end
     end)
     SaveConfig()
@@ -120,84 +108,91 @@ end
 
 TurnOffBtn.MouseButton1Click:Connect(function() UpdateBlackScreenState(false) end)
 
---// 3. SAFE Remove VFX (Đã xóa phần xóa UI gây lỗi)
+--// 3. SAFE Remove VFX
 local function RemoveVFX()
     local rs = game:GetService("ReplicatedStorage")
     local vfx = rs:FindFirstChild("VFX")
     local keep = { ["Summon"] = true } 
-    
     if vfx then
         for _, obj in ipairs(vfx:GetChildren()) do
             if not keep[obj.Name] then obj:Destroy() end
         end
     end
-    
-    -- ĐÃ XÓA ĐOẠN UI FOLDER TẠI ĐÂY ĐỂ TRÁNH MẤT UI GAME
 end
 
---// 4. Webhook Logic (Đọc dữ liệu an toàn hơn)
+--// 4. Webhook Logic (FIX CRASH UI)
 local function SendWebhook()
-    if config.webhook ~= "" then
+    -- Lấy dữ liệu trước (Việc này an toàn, không gây lag)
+    local level, gems, coins, tokens = "N/A", "N/A", "N/A", "N/A"
+    
+    pcall(function()
         local leaderstats = plr:FindFirstChild("leaderstats")
         local data = plr:FindFirstChild("Data")
-
-        local level = leaderstats and leaderstats:FindFirstChild("Level") and leaderstats.Level.Value or "N/A"
-        local gems = data and data:FindFirstChild("Gems") and data.Gems.Value or "N/A"
-        local coins = data and data:FindFirstChild("Coins") and data.Coins.Value or "N/A"
+        level = leaderstats and leaderstats:FindFirstChild("Level") and leaderstats.Level.Value or "N/A"
+        gems = data and data:FindFirstChild("Gems") and data.Gems.Value or "N/A"
+        coins = data and data:FindFirstChild("Coins") and data.Coins.Value or "N/A"
         
-        local tokens = "N/A"
-        
-        -- Safe Check: Chỉ đọc khi PlayerGui thực sự tồn tại và không gây lỗi
-        local success, err = pcall(function()
-            local pGui = plr:WaitForChild("PlayerGui", 1)
-            if pGui then
-                local inv = pGui:FindFirstChild("main")
-                if inv and inv:FindFirstChild("Inventory") then
-                    local base = inv.Inventory:FindFirstChild("Base")
-                    if base and base:FindFirstChild("Content") then
-                         local items = base.Content:FindFirstChild("Items")
-                         if items and items:FindFirstChild("Trait Tokens") then
-                            tokens = items["Trait Tokens"].Quantity.Text
-                         end
-                    end
+        local pGui = plr:WaitForChild("PlayerGui", 1)
+        if pGui then
+            local inv = pGui:FindFirstChild("main")
+            if inv and inv:FindFirstChild("Inventory") then
+                local items = inv.Inventory.Base.Content.Items
+                if items and items:FindFirstChild("Trait Tokens") then
+                    tokens = items["Trait Tokens"].Quantity.Text
                 end
             end
-        end)
-        
-        local embed = {
-            ["title"] = "Anime Story Stats",
-            ["color"] = tonumber(0x00B2FF),
-            ["fields"] = {
-                { ["name"] = "**User**", ["value"] = plr.Name .. " (Lvl: " .. tostring(level) .. ")", ["inline"] = true },
-                { ["name"] = "**Resources**", ["value"] = "💎 " .. tostring(gems) .. "\n💰 " .. tostring(coins) .. "\n🎟️ " .. tostring(tokens), ["inline"] = false },
-                { ["name"] = "**Time**", ["value"] = os.date("%Y-%m-%d %H:%M:%S"), ["inline"] = false }
-            }
+        end
+    end)
+
+    local embed = {
+        ["title"] = "Anime Story Stats",
+        ["color"] = tonumber(0x00B2FF),
+        ["fields"] = {
+            { ["name"] = "**User**", ["value"] = plr.Name .. " (Lvl: " .. tostring(level) .. ")", ["inline"] = true },
+            { ["name"] = "**Resources**", ["value"] = "💎 " .. tostring(gems) .. "\n💰 " .. tostring(coins) .. "\n🎟️ " .. tostring(tokens), ["inline"] = false },
+            { ["name"] = "**Time**", ["value"] = os.date("%Y-%m-%d %H:%M:%S"), ["inline"] = false }
         }
+    }
 
-        request({
-            Url = config.webhook,
-            Method = "POST",
-            Body = HttpService:JSONEncode({embeds = {embed}})
-        })
-    end
+    local payload = HttpService:JSONEncode({embeds = {embed}})
 
+    -- QUAN TRỌNG: Bọc request vào task.spawn riêng biệt
+    -- Điều này giúp nếu request bị Roblox chặn hoặc treo, nó KHÔNG kéo theo UI game chết chùm.
+    task.spawn(function()
+        if config.webhook ~= "" then
+            pcall(function()
+                request({
+                    Url = config.webhook,
+                    Method = "POST",
+                    Headers = {
+                        ["Content-Type"] = "application/json" -- Header chuẩn để tránh bị chặn
+                    },
+                    Body = payload
+                })
+            end)
+        end
+    end)
+
+    -- Heartbeat cũng tách riêng ra
     if config.heartbeat and config.heartbeat ~= "" then
-        pcall(function() request({ Url = config.heartbeat, Method = "GET" }) end)
+        task.spawn(function()
+            pcall(function() request({ Url = config.heartbeat, Method = "GET" }) end)
+        end)
     end
 end
 
--- Loop
+-- Loop Handler
 task.spawn(function()
     while task.wait(1) do
         if config.enabled then
-            SendWebhook()
+            SendWebhook() -- Hàm này giờ đã an toàn, không block thread
             task.wait(config.delay * 60)
         end
     end
 end)
 
 --// GUI SETUP
-ScreenGui = Instance.new("ScreenGui") -- Biến toàn cục để hàm Update truy cập
+ScreenGui = Instance.new("ScreenGui")
 if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end
 ScreenGui.ResetOnSpawn = false
 
@@ -209,11 +204,10 @@ Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Frame.Active = true
 Frame.Draggable = true
 
--- Title
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.Text = "  Anime Story Manager (Safe UI)"
+Title.Text = "  Anime Story Manager (Anti-Crash)"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Font = Enum.Font.SourceSansBold
@@ -226,7 +220,6 @@ MinBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 MinBtn.Text = "-"
 MinBtn.TextColor3 = Color3.new(1,1,1)
 
--- Inputs
 local WebhookBox = Instance.new("TextBox", Frame)
 WebhookBox.Size = UDim2.new(1, -20, 0, 30)
 WebhookBox.Position = UDim2.new(0, 10, 0, 40)
@@ -259,7 +252,6 @@ WebhookBox.FocusLost:Connect(function() config.webhook = WebhookBox.Text; SaveCo
 HeartbeatBox.FocusLost:Connect(function() config.heartbeat = HeartbeatBox.Text; SaveConfig() end)
 DelayBox.FocusLost:Connect(function() config.delay = tonumber(DelayBox.Text) or 5; SaveConfig() end)
 
--- Toggle Webhook
 local MainToggle = Instance.new("TextButton", Frame)
 MainToggle.Size = UDim2.new(1, -20, 0, 30)
 MainToggle.Position = UDim2.new(0, 10, 0, 160)
@@ -276,7 +268,6 @@ MainToggle.MouseButton1Click:Connect(function()
     SaveConfig()
 end)
 
--- Row
 local Row = Instance.new("Frame", Frame)
 Row.Name = "Row"
 Row.Size = UDim2.new(1, -20, 0, 30)
@@ -312,7 +303,6 @@ BlackBtn.MouseButton1Click:Connect(function()
     UpdateBlackScreenState(not config.blackscreen)
 end)
 
--- Force Save
 local SaveBtn = Instance.new("TextButton", Frame)
 SaveBtn.Size = UDim2.new(1, -20, 0, 30)
 SaveBtn.Position = UDim2.new(0, 10, 0, 240)
@@ -330,7 +320,6 @@ end)
 if config.vfx then RemoveVFX() end 
 if config.blackscreen then UpdateBlackScreenState(true) end
 
--- Minimized
 local minimized = config.minimized
 local function ApplyMin()
     if minimized then
