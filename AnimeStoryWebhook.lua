@@ -1,5 +1,5 @@
--- Roblox Webhook Sender & Manager (Auto-Save Inputs & Black Screen Turn Off)
--- Features: Webhook, Heartbeat, CPU Saver (BlackScreen), One-time VFX, Silent Anti-AFK, Auto-Save Text
+-- Roblox Webhook Sender (SAFE UI VERSION)
+-- Fix lỗi mất UI game, Tối ưu Mobile, Auto Save
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
+local VirtualUser = game:GetService("VirtualUser")
 local plr = Players.LocalPlayer
 
 --// Executor Compatibility
@@ -19,7 +20,7 @@ if not request then
 end
 
 --// Config Setup
-local configFile = "anime_story_config_final_v2.json" 
+local configFile = "anime_story_config_safe_v3.json" 
 local config = {
     webhook = "",
     heartbeat = "",
@@ -44,24 +45,22 @@ local function SaveConfig()
     writefile(configFile, HttpService:JSONEncode(config))
 end
 
---// 1. Silent Anti-AFK (Always Run)
-local vu = game:GetService("VirtualUser")
+--// 1. SAFE Anti-AFK (Dùng Nhảy thay vì Click chuột để tránh lỗi UI)
 plr.Idled:Connect(function()
-    vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    task.wait(1)
-    vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new()) -- Giả lập bấm nhẹ
+    -- Nếu vẫn bị kick, hãy dùng lệnh nhảy:
+    -- local char = plr.Character
+    -- if char and char:FindFirstChild("Humanoid") then char.Humanoid.Jump = true end
 end)
 
---// 2. Black Screen Logic (CPU Saver)
+--// 2. Black Screen Logic
 local BlackScreenGui = Instance.new("ScreenGui")
-if gethui then 
-    BlackScreenGui.Parent = gethui() 
+if gethui then BlackScreenGui.Parent = gethui() 
 elseif syn and syn.protect_gui then 
     syn.protect_gui(BlackScreenGui)
     BlackScreenGui.Parent = CoreGui
-else 
-    BlackScreenGui.Parent = CoreGui 
-end
+else BlackScreenGui.Parent = CoreGui end
 
 BlackScreenGui.Enabled = false
 BlackScreenGui.IgnoreGuiInset = true
@@ -81,14 +80,14 @@ BlackLabel.Text = "CPU Saver Mode (Black Screen)\nScript vẫn đang chạy..."
 BlackLabel.TextSize = 24
 BlackLabel.Font = Enum.Font.SourceSansBold
 
--- NÚT TẮT NGAY TRÊN MÀN HÌNH ĐEN (MỚI)
+-- Nút TẮT trên màn hình đen
 local TurnOffBtn = Instance.new("TextButton", BlackFrame)
 TurnOffBtn.Name = "TurnOffBtn"
 TurnOffBtn.Size = UDim2.new(0, 250, 0, 40)
-TurnOffBtn.Position = UDim2.new(0.5, -125, 1, -50) -- Giữa, phía dưới
-TurnOffBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0) -- Màu đỏ
+TurnOffBtn.Position = UDim2.new(0.5, -125, 1, -100)
+TurnOffBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 TurnOffBtn.TextColor3 = Color3.new(1, 1, 1)
-TurnOffBtn.Text = "Click to TURN OFF CPU Saver"
+TurnOffBtn.Text = "BẤM VÀO ĐÂY ĐỂ TẮT MÀN HÌNH ĐEN"
 TurnOffBtn.Font = Enum.Font.SourceSansBold
 TurnOffBtn.TextSize = 18
 
@@ -97,29 +96,31 @@ local function ToggleBlackScreen(state)
     RunService:Set3dRenderingEnabled(not state) 
 end
 
--- Hàm chung để cập nhật trạng thái Black Screen và đồng bộ với GUI
+-- Hàm cập nhật trạng thái chung
 local function UpdateBlackScreenState(state)
     config.blackscreen = state
     ToggleBlackScreen(state)
-
-    -- Đồng bộ trạng thái với nút BlackBtn trên GUI chính
-    local GUIFrame = ScreenGui:FindFirstChild("Frame")
-    if GUIFrame and GUIFrame:FindFirstChild("Row") and GUIFrame.Row:FindFirstChild("BlackBtn") then
-        local BlackBtn = GUIFrame.Row.BlackBtn
-        BlackBtn.Text = "Black Scrn: " .. (state and "ON" or "OFF")
-        BlackBtn.BackgroundColor3 = state and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(70, 70, 70)
-    end
     
+    -- Update GUI (Tìm nút BlackBtn và đổi màu/text)
+    pcall(function()
+        local frame = ScreenGui:FindFirstChild("Frame")
+        if frame then
+            local row = frame:FindFirstChild("Row")
+            if row then
+                local btn = row:FindFirstChild("BlackBtn")
+                if btn then
+                    btn.Text = "Black Scrn: " .. (state and "ON" or "OFF")
+                    btn.BackgroundColor3 = state and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(70, 70, 70)
+                end
+            end
+        end
+    end)
     SaveConfig()
 end
 
--- Liên kết nút trên màn hình đen để tắt
-TurnOffBtn.MouseButton1Click:Connect(function()
-    UpdateBlackScreenState(false) -- Buộc tắt
-end)
+TurnOffBtn.MouseButton1Click:Connect(function() UpdateBlackScreenState(false) end)
 
-
---// 3. Remove VFX Logic (One-time Run)
+--// 3. SAFE Remove VFX (Đã xóa phần xóa UI gây lỗi)
 local function RemoveVFX()
     local rs = game:GetService("ReplicatedStorage")
     local vfx = rs:FindFirstChild("VFX")
@@ -131,14 +132,10 @@ local function RemoveVFX()
         end
     end
     
-    local uiFolder = rs:FindFirstChild("UI")
-    if uiFolder then
-        local dmg = uiFolder:FindFirstChild("Damage")
-        if dmg then dmg:Destroy() end
-    end
+    -- ĐÃ XÓA ĐOẠN UI FOLDER TẠI ĐÂY ĐỂ TRÁNH MẤT UI GAME
 end
 
---// 4. Webhook Logic
+--// 4. Webhook Logic (Đọc dữ liệu an toàn hơn)
 local function SendWebhook()
     if config.webhook ~= "" then
         local leaderstats = plr:FindFirstChild("leaderstats")
@@ -149,12 +146,20 @@ local function SendWebhook()
         local coins = data and data:FindFirstChild("Coins") and data.Coins.Value or "N/A"
         
         local tokens = "N/A"
-        pcall(function()
-            local inv = plr.PlayerGui:FindFirstChild("main")
-            if inv and inv:FindFirstChild("Inventory") then
-                local items = inv.Inventory.Base.Content.Items
-                if items and items:FindFirstChild("Trait Tokens") then
-                    tokens = items["Trait Tokens"].Quantity.Text
+        
+        -- Safe Check: Chỉ đọc khi PlayerGui thực sự tồn tại và không gây lỗi
+        local success, err = pcall(function()
+            local pGui = plr:WaitForChild("PlayerGui", 1)
+            if pGui then
+                local inv = pGui:FindFirstChild("main")
+                if inv and inv:FindFirstChild("Inventory") then
+                    local base = inv.Inventory:FindFirstChild("Base")
+                    if base and base:FindFirstChild("Content") then
+                         local items = base.Content:FindFirstChild("Items")
+                         if items and items:FindFirstChild("Trait Tokens") then
+                            tokens = items["Trait Tokens"].Quantity.Text
+                         end
+                    end
                 end
             end
         end)
@@ -181,7 +186,7 @@ local function SendWebhook()
     end
 end
 
--- Loop Handler chính
+-- Loop
 task.spawn(function()
     while task.wait(1) do
         if config.enabled then
@@ -192,6 +197,10 @@ task.spawn(function()
 end)
 
 --// GUI SETUP
+ScreenGui = Instance.new("ScreenGui") -- Biến toàn cục để hàm Update truy cập
+if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end
+ScreenGui.ResetOnSpawn = false
+
 local Frame = Instance.new("Frame", ScreenGui)
 Frame.Name = "Frame"
 Frame.Size = UDim2.new(0, 300, 0, 330)
@@ -200,11 +209,11 @@ Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Frame.Active = true
 Frame.Draggable = true
 
--- Title Bar
+-- Title
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.Text = "  Anime Story Manager"
+Title.Text = "  Anime Story Manager (Safe UI)"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Font = Enum.Font.SourceSansBold
@@ -217,7 +226,7 @@ MinBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 MinBtn.Text = "-"
 MinBtn.TextColor3 = Color3.new(1,1,1)
 
--- 1. Webhook Input
+-- Inputs
 local WebhookBox = Instance.new("TextBox", Frame)
 WebhookBox.Size = UDim2.new(1, -20, 0, 30)
 WebhookBox.Position = UDim2.new(0, 10, 0, 40)
@@ -227,7 +236,6 @@ WebhookBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 WebhookBox.TextColor3 = Color3.new(1,1,1)
 WebhookBox.ClearTextOnFocus = false
 
--- 2. Heartbeat Input
 local HeartbeatBox = Instance.new("TextBox", Frame)
 HeartbeatBox.Size = UDim2.new(1, -20, 0, 30)
 HeartbeatBox.Position = UDim2.new(0, 10, 0, 80)
@@ -237,7 +245,6 @@ HeartbeatBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 HeartbeatBox.TextColor3 = Color3.new(1,1,1)
 HeartbeatBox.ClearTextOnFocus = false
 
--- 3. Delay Input
 local DelayBox = Instance.new("TextBox", Frame)
 DelayBox.Size = UDim2.new(1, -20, 0, 30)
 DelayBox.Position = UDim2.new(0, 10, 0, 120)
@@ -247,23 +254,12 @@ DelayBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 DelayBox.TextColor3 = Color3.new(1,1,1)
 DelayBox.ClearTextOnFocus = false
 
--- Logic Auto Save cho TextBox
-WebhookBox.FocusLost:Connect(function()
-    config.webhook = WebhookBox.Text
-    SaveConfig()
-end)
+-- Auto Save Logic
+WebhookBox.FocusLost:Connect(function() config.webhook = WebhookBox.Text; SaveConfig() end)
+HeartbeatBox.FocusLost:Connect(function() config.heartbeat = HeartbeatBox.Text; SaveConfig() end)
+DelayBox.FocusLost:Connect(function() config.delay = tonumber(DelayBox.Text) or 5; SaveConfig() end)
 
-HeartbeatBox.FocusLost:Connect(function()
-    config.heartbeat = HeartbeatBox.Text
-    SaveConfig()
-end)
-
-DelayBox.FocusLost:Connect(function()
-    config.delay = tonumber(DelayBox.Text) or 5
-    SaveConfig()
-end)
-
--- 4. Status Toggle (Webhook)
+-- Toggle Webhook
 local MainToggle = Instance.new("TextButton", Frame)
 MainToggle.Size = UDim2.new(1, -20, 0, 30)
 MainToggle.Position = UDim2.new(0, 10, 0, 160)
@@ -280,7 +276,7 @@ MainToggle.MouseButton1Click:Connect(function()
     SaveConfig()
 end)
 
--- 5. Row for Toggles (VFX & BlackScreen)
+-- Row
 local Row = Instance.new("Frame", Frame)
 Row.Name = "Row"
 Row.Size = UDim2.new(1, -20, 0, 30)
@@ -296,7 +292,7 @@ VFXBtn.TextColor3 = Color3.new(1,1,1)
 VFXBtn.Font = Enum.Font.SourceSansBold
 
 local BlackBtn = Instance.new("TextButton", Row)
-BlackBtn.Name = "BlackBtn" -- Đặt tên để có thể truy cập từ hàm UpdateBlackScreenState
+BlackBtn.Name = "BlackBtn"
 BlackBtn.Size = UDim2.new(0.5, -5, 1, 0)
 BlackBtn.Position = UDim2.new(0.5, 5, 0, 0)
 BlackBtn.BackgroundColor3 = config.blackscreen and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(70, 70, 70)
@@ -312,12 +308,11 @@ VFXBtn.MouseButton1Click:Connect(function()
     SaveConfig()
 end)
 
--- Liên kết nút BlackBtn trên GUI chính với hàm chung
 BlackBtn.MouseButton1Click:Connect(function()
     UpdateBlackScreenState(not config.blackscreen)
 end)
 
--- 6. Save Button (Vẫn giữ để bạn yên tâm bấm)
+-- Force Save
 local SaveBtn = Instance.new("TextButton", Frame)
 SaveBtn.Size = UDim2.new(1, -20, 0, 30)
 SaveBtn.Position = UDim2.new(0, 10, 0, 240)
@@ -325,28 +320,23 @@ SaveBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 200)
 SaveBtn.Text = "Force Save Config"
 SaveBtn.TextColor3 = Color3.new(1,1,1)
 SaveBtn.Font = Enum.Font.SourceSansBold
-SaveBtn.TextSize = 18
 
 SaveBtn.MouseButton1Click:Connect(function()
-    config.webhook = WebhookBox.Text
-    config.heartbeat = HeartbeatBox.Text
-    config.delay = tonumber(DelayBox.Text) or 5
+    config.webhook = WebhookBox.Text; config.heartbeat = HeartbeatBox.Text; config.delay = tonumber(DelayBox.Text) or 5
     SaveConfig()
 end)
 
 -- Init
 if config.vfx then RemoveVFX() end 
--- Sử dụng UpdateBlackScreenState để đồng bộ trạng thái khi khởi động
-if config.blackscreen then UpdateBlackScreenState(true) end 
+if config.blackscreen then UpdateBlackScreenState(true) end
 
+-- Minimized
 local minimized = config.minimized
 local function ApplyMin()
     if minimized then
         Frame.Size = UDim2.new(0, 300, 0, 30)
         MinBtn.Text = "+"
-        for _, v in pairs(Frame:GetChildren()) do
-            if v ~= Title and v ~= MinBtn then v.Visible = false end
-        end
+        for _, v in pairs(Frame:GetChildren()) do if v ~= Title and v ~= MinBtn then v.Visible = false end end
     else
         Frame.Size = UDim2.new(0, 300, 0, 290)
         MinBtn.Text = "-"
@@ -354,10 +344,4 @@ local function ApplyMin()
     end
 end
 ApplyMin()
-
-MinBtn.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    config.minimized = minimized
-    SaveConfig()
-    ApplyMin()
-end)
+MinBtn.MouseButton1Click:Connect(function() minimized = not minimized; config.minimized = minimized; SaveConfig(); ApplyMin() end)
