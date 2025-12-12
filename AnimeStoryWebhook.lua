@@ -1,5 +1,5 @@
--- Roblox Webhook Sender (ANTI-CRASH REQUEST VERSION)
--- Fix: Tách biệt luồng Request để không làm mất UI Game khi Roblox chặn mạng
+-- Roblox Webhook Sender (DELTA/MOBILE FIX FINAL)
+-- Fix: Xóa Headers gây lỗi, Anti-Crash UI, Auto Save
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -20,7 +20,7 @@ if not request then
 end
 
 --// Config Setup
-local configFile = "anime_story_config_v4_fixrequest.json" 
+local configFile = "anime_story_config_delta_fix.json" 
 local config = {
     webhook = "",
     heartbeat = "",
@@ -120,11 +120,11 @@ local function RemoveVFX()
     end
 end
 
---// 4. Webhook Logic (FIX CRASH UI)
+--// 4. Webhook Logic (NO HEADERS - FIX CRASH)
 local function SendWebhook()
-    -- Lấy dữ liệu trước (Việc này an toàn, không gây lag)
     local level, gems, coins, tokens = "N/A", "N/A", "N/A", "N/A"
     
+    -- Lấy data an toàn (bọc pcall để không crash nếu game chưa load xong)
     pcall(function()
         local leaderstats = plr:FindFirstChild("leaderstats")
         local data = plr:FindFirstChild("Data")
@@ -156,24 +156,24 @@ local function SendWebhook()
 
     local payload = HttpService:JSONEncode({embeds = {embed}})
 
-    -- QUAN TRỌNG: Bọc request vào task.spawn riêng biệt
-    -- Điều này giúp nếu request bị Roblox chặn hoặc treo, nó KHÔNG kéo theo UI game chết chùm.
+    -- ▼▼▼ QUAN TRỌNG: FIX LỖI USER-AGENT & CRASH UI ▼▼▼
     task.spawn(function()
         if config.webhook ~= "" then
-            pcall(function()
+            local success, err = pcall(function()
                 request({
                     Url = config.webhook,
                     Method = "POST",
-                    Headers = {
-                        ["Content-Type"] = "application/json" -- Header chuẩn để tránh bị chặn
-                    },
+                    -- ĐÃ XÓA HEADERS: Delta tự động xử lý cái này.
+                    -- Nếu thêm Headers sẽ bị lỗi "User-Agent is not allowed".
                     Body = payload
                 })
             end)
+            if not success then 
+                warn("Webhook Error (Ignored to save UI):", err) 
+            end
         end
     end)
 
-    -- Heartbeat cũng tách riêng ra
     if config.heartbeat and config.heartbeat ~= "" then
         task.spawn(function()
             pcall(function() request({ Url = config.heartbeat, Method = "GET" }) end)
@@ -185,7 +185,10 @@ end
 task.spawn(function()
     while task.wait(1) do
         if config.enabled then
-            SendWebhook() -- Hàm này giờ đã an toàn, không block thread
+            -- Chạy trong pcall tổng để đảm bảo Loop không bao giờ chết
+            pcall(function()
+                SendWebhook()
+            end)
             task.wait(config.delay * 60)
         end
     end
@@ -207,7 +210,7 @@ Frame.Draggable = true
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.Text = "  Anime Story Manager (Anti-Crash)"
+Title.Text = "  Anime Story Manager (Final Fix)"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Font = Enum.Font.SourceSansBold
