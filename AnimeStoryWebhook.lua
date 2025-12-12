@@ -1,4 +1,4 @@
--- Roblox Webhook Sender & Manager (Auto-Save Inputs Version)
+-- Roblox Webhook Sender & Manager (Auto-Save Inputs & Black Screen Turn Off)
 -- Features: Webhook, Heartbeat, CPU Saver (BlackScreen), One-time VFX, Silent Anti-AFK, Auto-Save Text
 
 if not game:IsLoaded() then
@@ -81,10 +81,43 @@ BlackLabel.Text = "CPU Saver Mode (Black Screen)\nScript vẫn đang chạy..."
 BlackLabel.TextSize = 24
 BlackLabel.Font = Enum.Font.SourceSansBold
 
+-- NÚT TẮT NGAY TRÊN MÀN HÌNH ĐEN (MỚI)
+local TurnOffBtn = Instance.new("TextButton", BlackFrame)
+TurnOffBtn.Name = "TurnOffBtn"
+TurnOffBtn.Size = UDim2.new(0, 250, 0, 40)
+TurnOffBtn.Position = UDim2.new(0.5, -125, 1, -50) -- Giữa, phía dưới
+TurnOffBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0) -- Màu đỏ
+TurnOffBtn.TextColor3 = Color3.new(1, 1, 1)
+TurnOffBtn.Text = "Click to TURN OFF CPU Saver"
+TurnOffBtn.Font = Enum.Font.SourceSansBold
+TurnOffBtn.TextSize = 18
+
 local function ToggleBlackScreen(state)
     BlackScreenGui.Enabled = state
     RunService:Set3dRenderingEnabled(not state) 
 end
+
+-- Hàm chung để cập nhật trạng thái Black Screen và đồng bộ với GUI
+local function UpdateBlackScreenState(state)
+    config.blackscreen = state
+    ToggleBlackScreen(state)
+
+    -- Đồng bộ trạng thái với nút BlackBtn trên GUI chính
+    local GUIFrame = ScreenGui:FindFirstChild("Frame")
+    if GUIFrame and GUIFrame:FindFirstChild("Row") and GUIFrame.Row:FindFirstChild("BlackBtn") then
+        local BlackBtn = GUIFrame.Row.BlackBtn
+        BlackBtn.Text = "Black Scrn: " .. (state and "ON" or "OFF")
+        BlackBtn.BackgroundColor3 = state and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(70, 70, 70)
+    end
+    
+    SaveConfig()
+end
+
+-- Liên kết nút trên màn hình đen để tắt
+TurnOffBtn.MouseButton1Click:Connect(function()
+    UpdateBlackScreenState(false) -- Buộc tắt
+end)
+
 
 --// 3. Remove VFX Logic (One-time Run)
 local function RemoveVFX()
@@ -159,11 +192,8 @@ task.spawn(function()
 end)
 
 --// GUI SETUP
-local ScreenGui = Instance.new("ScreenGui")
-if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end
-ScreenGui.ResetOnSpawn = false
-
 local Frame = Instance.new("Frame", ScreenGui)
+Frame.Name = "Frame"
 Frame.Size = UDim2.new(0, 300, 0, 330)
 Frame.Position = UDim2.new(0.35, 0, 0.3, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -217,9 +247,7 @@ DelayBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 DelayBox.TextColor3 = Color3.new(1,1,1)
 DelayBox.ClearTextOnFocus = false
 
--- === LOGIC AUTO SAVE MỚI CHO TEXTBOX ===
--- Khi bạn nhập xong và bấm Enter hoặc bấm ra ngoài, nó tự lưu ngay
-
+-- Logic Auto Save cho TextBox
 WebhookBox.FocusLost:Connect(function()
     config.webhook = WebhookBox.Text
     SaveConfig()
@@ -234,7 +262,6 @@ DelayBox.FocusLost:Connect(function()
     config.delay = tonumber(DelayBox.Text) or 5
     SaveConfig()
 end)
--- =======================================
 
 -- 4. Status Toggle (Webhook)
 local MainToggle = Instance.new("TextButton", Frame)
@@ -255,11 +282,13 @@ end)
 
 -- 5. Row for Toggles (VFX & BlackScreen)
 local Row = Instance.new("Frame", Frame)
+Row.Name = "Row"
 Row.Size = UDim2.new(1, -20, 0, 30)
 Row.Position = UDim2.new(0, 10, 0, 200)
 Row.BackgroundTransparency = 1
 
 local VFXBtn = Instance.new("TextButton", Row)
+VFXBtn.Name = "VFXBtn"
 VFXBtn.Size = UDim2.new(0.5, -5, 1, 0)
 VFXBtn.BackgroundColor3 = config.vfx and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(70, 70, 70)
 VFXBtn.Text = "No VFX: " .. (config.vfx and "ON" or "OFF")
@@ -267,6 +296,7 @@ VFXBtn.TextColor3 = Color3.new(1,1,1)
 VFXBtn.Font = Enum.Font.SourceSansBold
 
 local BlackBtn = Instance.new("TextButton", Row)
+BlackBtn.Name = "BlackBtn" -- Đặt tên để có thể truy cập từ hàm UpdateBlackScreenState
 BlackBtn.Size = UDim2.new(0.5, -5, 1, 0)
 BlackBtn.Position = UDim2.new(0.5, 5, 0, 0)
 BlackBtn.BackgroundColor3 = config.blackscreen and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(70, 70, 70)
@@ -282,12 +312,9 @@ VFXBtn.MouseButton1Click:Connect(function()
     SaveConfig()
 end)
 
+-- Liên kết nút BlackBtn trên GUI chính với hàm chung
 BlackBtn.MouseButton1Click:Connect(function()
-    config.blackscreen = not config.blackscreen
-    BlackBtn.Text = "Black Scrn: " .. (config.blackscreen and "ON" or "OFF")
-    BlackBtn.BackgroundColor3 = config.blackscreen and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(70, 70, 70)
-    ToggleBlackScreen(config.blackscreen)
-    SaveConfig()
+    UpdateBlackScreenState(not config.blackscreen)
 end)
 
 -- 6. Save Button (Vẫn giữ để bạn yên tâm bấm)
@@ -309,7 +336,8 @@ end)
 
 -- Init
 if config.vfx then RemoveVFX() end 
-if config.blackscreen then ToggleBlackScreen(true) end
+-- Sử dụng UpdateBlackScreenState để đồng bộ trạng thái khi khởi động
+if config.blackscreen then UpdateBlackScreenState(true) end 
 
 local minimized = config.minimized
 local function ApplyMin()
