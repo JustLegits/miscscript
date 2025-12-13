@@ -1,5 +1,5 @@
--- Roblox Auto Farm Manager (NO FPS LIMIT VERSION)
--- Features: Webhook, Heartbeat, Black Screen (Only Visual), Anti-AFK, Auto Save
+-- Roblox Auto Farm Manager (REAL FPS COUNTER VERSION)
+-- Features: Webhook, Heartbeat, Black Screen (Visual Only), Real FPS Counter, Anti-AFK, Auto Save
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService") -- Thêm RunService để tính FPS
 local plr = Players.LocalPlayer
 
 --// Executor Compatibility
@@ -25,7 +26,7 @@ local config = {
     heartbeat = "",
     delay = 5,
     enabled = false,
-    vfx = false,          
+    vfx = true,           
     blackscreen = false,  
     minimized = true
 }
@@ -50,7 +51,14 @@ plr.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
---// 2. Black Screen Logic (Visual Only)
+--// 2. FPS Calculation Logic (MỚI)
+local CurrentFPS = 60 -- Giá trị mặc định
+RunService.RenderStepped:Connect(function(step)
+    -- Tính FPS bằng cách lấy 1 chia cho thời gian giữa 2 khung hình
+    CurrentFPS = math.floor(1 / step)
+end)
+
+--// 3. Black Screen Logic (Visual Only)
 local BlackScreenGui = Instance.new("ScreenGui")
 if gethui then BlackScreenGui.Parent = gethui() 
 elseif syn and syn.protect_gui then 
@@ -110,18 +118,19 @@ local function UpdateStats()
             end
         end
     end)
+    
+    -- CẬP NHẬT: Thay "Normal FPS" bằng biến CurrentFPS
     StatsLabel.Text = string.format(
-        "PLAYER INFOS (Normal FPS)\n\nUser: %s\nLevel: %s\n\n💎 Gems: %s\n💰 Golds: %s\n🎫 Trait Tokens: %s",
+        "PLAYER INFOS (FPS: %d)\n\nUser: %s\nLevel: %s\n\n💎 Gems: %s\n💰 Golds: %s\n🎫 Trait Tokens: %s",
+        CurrentFPS, -- Biến FPS thực tế
         plr.Name, tostring(level), tostring(gems), tostring(coins), tostring(tokens)
     )
 end
 
--- Logic Bật/Tắt Black Screen (ĐÃ BỎ FPS CAP)
+-- Logic Bật/Tắt Black Screen
 local function UpdateBlackScreenState(state)
     config.blackscreen = state
     BlackScreenGui.Enabled = state 
-    
-    -- Không còn lệnh SetFPS ở đây nữa
     
     pcall(function()
         local frame = ScreenGui:FindFirstChild("Frame")
@@ -136,7 +145,7 @@ end
 
 TurnOffBtn.MouseButton1Click:Connect(function() UpdateBlackScreenState(false) end)
 
---// 3. SAFE Remove VFX
+--// 4. SAFE Remove VFX
 local function RemoveVFX()
     local rs = game:GetService("ReplicatedStorage")
     local vfx = rs:FindFirstChild("VFX")
@@ -148,7 +157,7 @@ local function RemoveVFX()
     end
 end
 
---// 4. WEBHOOK LOGIC
+--// 5. WEBHOOK LOGIC
 local function SendWebhook()
     local level, gems, coins, tokens = "N/A", "N/A", "N/A", "N/A"
     
@@ -229,7 +238,7 @@ Frame.Draggable = true
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.Text = "  Anime Story (No FPS Limit)"
+Title.Text = "  Anime Story Webhook"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Font = Enum.Font.SourceSansBold
@@ -242,24 +251,37 @@ MinBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 MinBtn.Text = "-"
 MinBtn.TextColor3 = Color3.new(1,1,1)
 
--- Inputs
+-- 1. Webhook Input
 local WebhookBox = Instance.new("TextBox", Frame)
+WebhookBox.Name = "WebhookBox"
 WebhookBox.Size = UDim2.new(1, -20, 0, 30)
 WebhookBox.Position = UDim2.new(0, 10, 0, 40)
-WebhookBox.PlaceholderText = "Webhook URL"
+WebhookBox.PlaceholderText = "Dán Webhook URL vào đây..."
 WebhookBox.Text = config.webhook
 WebhookBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 WebhookBox.TextColor3 = Color3.new(1,1,1)
+WebhookBox.Font = Enum.Font.SourceSans
+WebhookBox.TextSize = 14
 WebhookBox.ClearTextOnFocus = false
+WebhookBox.ClipsDescendants = true
+WebhookBox.TextXAlignment = Enum.TextXAlignment.Left
+WebhookBox.TextTruncate = Enum.TextTruncate.AtEnd 
 
+-- 2. Heartbeat Input
 local HeartbeatBox = Instance.new("TextBox", Frame)
+HeartbeatBox.Name = "HeartbeatBox"
 HeartbeatBox.Size = UDim2.new(1, -20, 0, 30)
 HeartbeatBox.Position = UDim2.new(0, 10, 0, 80)
-HeartbeatBox.PlaceholderText = "Heartbeat URL"
+HeartbeatBox.PlaceholderText = "Dán Heartbeat URL vào đây..."
 HeartbeatBox.Text = config.heartbeat
 HeartbeatBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 HeartbeatBox.TextColor3 = Color3.new(1,1,1)
+HeartbeatBox.Font = Enum.Font.SourceSans
+HeartbeatBox.TextSize = 14
 HeartbeatBox.ClearTextOnFocus = false
+HeartbeatBox.ClipsDescendants = true
+HeartbeatBox.TextXAlignment = Enum.TextXAlignment.Left
+HeartbeatBox.TextTruncate = Enum.TextTruncate.AtEnd 
 
 local DelayBox = Instance.new("TextBox", Frame)
 DelayBox.Size = UDim2.new(1, -20, 0, 30)
