@@ -69,7 +69,7 @@ def save_server_links(links):
 # ============ Roblox actions ============
 def get_custom_packages():
     # Các từ khóa nhận diện package
-    keywords = ["roblox", "bduy", "mangcut", "concacug","codex","delta","arceus","ugpornkiki"]
+    keywords = ["roblox", "bduy", "mangcut", "concacug","codex","delta","arceus","ugpornkiki","nhat"]
 
     result = subprocess.run(
         "pm list packages",
