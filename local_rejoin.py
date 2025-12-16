@@ -552,20 +552,20 @@ Chọn loại script:
     choice = input("Nhập lựa chọn: ").strip()
 
     if choice == "1":
-        filename = os.path.join(auto_dir, "checkonline.lua")
+        filename = os.path.join(auto_dir, "checkonline.txt")
         script_content = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/JustLegits/miscscript/main/checkonline.lua"))()'
     elif choice == "2":
         # Tìm số tiếp theo cho file autoexecuteN.lua
-        existing = [f for f in os.listdir(auto_dir) if f.startswith("autoexecute") and f.endswith(".lua")]
+        existing = [f for f in os.listdir(auto_dir) if f.startswith("autoexecute") and f.endswith(".txt")]
         nums = []
         for f in existing:
             try:
-                n = int(f.replace("autoexecute", "").replace(".lua", ""))
+                n = int(f.replace("autoexecute", "").replace(".txt", ""))
                 nums.append(n)
             except:
                 pass
         next_num = max(nums) + 1 if nums else 1
-        filename = os.path.join(auto_dir, f"autoexecute{next_num}.lua")
+        filename = os.path.join(auto_dir, f"autoexecute{next_num}.txt")
 
         print(Fore.LIGHTBLUE_EX + f"Nhập script của bạn (gõ 'end' trên 1 dòng để kết thúc):")
         lines = []
