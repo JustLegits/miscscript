@@ -288,10 +288,15 @@ def disable_animations():
     return success
 
 # ============ MENU FUNCTIONS ============
-# /1: Auto Rejoin
+# /1: Auto Rejoin (Updated with Periodic Restart)
 def auto_rejoin():
     cfg = load_config()
     reconnect_dir = cfg.get("reconnect_dir")
+    
+    # Load restart intervals configuration
+    restart_intervals = cfg.get("restart_intervals", {}) 
+    # Dictionary to track last restart time: { "package_name": timestamp }
+    last_restart_track = {} 
 
     if not reconnect_dir or not os.path.exists(reconnect_dir):
         found = find_reconnect_dirs()
@@ -313,12 +318,52 @@ def auto_rejoin():
     for pkg in list(links.keys()):
         links[pkg] = format_server_link(links[pkg])
 
-    msg("[i] Bắt đầu auto rejoin local...")
+    # Initialize tracking time for all accounts to current time
+    # so they don't restart immediately upon opening the tool
+    for pkg, _ in accounts:
+        last_restart_track[pkg] = time.time()
+
+    msg("[i] Bắt đầu auto rejoin local...", "info")
+    
+    # Check intervals info
+    print(Fore.LIGHTCYAN_EX + "--- Cấu hình Auto Restart ---")
+    for pkg, mins in restart_intervals.items():
+        if mins > 0:
+            print(f"> {pkg}: {mins} phút")
+    print("-----------------------------")
+
     try:
         while True:
             clear()
             msg("[i] Bắt đầu vòng check mới...", "info")
+            current_time = time.time()
+
             for pkg, username in accounts:
+                # --- CHECK 1: Periodic Restart ---
+                interval_minutes = restart_intervals.get(pkg, 0)
+                
+                # Setup start time if not tracked yet
+                if pkg not in last_restart_track:
+                    last_restart_track[pkg] = current_time
+
+                # Logic: If interval > 0 AND time passed > interval * 60
+                if interval_minutes > 0:
+                    elapsed = current_time - last_restart_track[pkg]
+                    if elapsed >= (interval_minutes * 60):
+                        msg(f"[!!!] SCHEDULED RESTART: {username} ({interval_minutes}m interval)", "warn")
+                        kill_roblox_process(pkg)
+                        link = links.get(pkg, "")
+                        launch_roblox(pkg, link)
+                        
+                        # Update tracking time
+                        last_restart_track[pkg] = time.time()
+                        send_webhook(f"♻️ **Scheduled Restart** executed for **{username}** after {interval_minutes} mins.")
+                        
+                        # Skip heartbeat check this turn because we just restarted
+                        time.sleep(5) 
+                        continue 
+
+                # --- CHECK 2: Heartbeat (Normal Rejoin) ---
                 hb_file = os.path.join(reconnect_dir, f"reconnect_status_{username}.json")
                 online, age, uname, reason = read_heartbeat(hb_file)
                 if online:
@@ -328,8 +373,14 @@ def auto_rejoin():
                     kill_roblox_process(pkg)
                     link = links.get(pkg, "")
                     launch_roblox(pkg, link)
-                    send_webhook(f"{username} OFFLINE ({reason}) → rejoined {pkg}")
+                    
+                    # Reset restart timer on crash/rejoin so we don't double restart
+                    last_restart_track[pkg] = time.time() 
+                    send_webhook(f"⚠️ **{username} OFFLINE** ({reason}) → rejoined {pkg}")
+                
                 time.sleep(5)
+            
+            msg(f"[i] Ngủ 200s trước vòng tiếp theo...", "info")
             time.sleep(200)
     except KeyboardInterrupt:
         msg("[i] Dừng auto rejoin.")
@@ -778,6 +829,77 @@ su -c "export PATH=$PATH:/data/data/com.termux/files/usr/bin && \
     else:
         msg("[!] Lựa chọn không hợp lệ.", "err")
 
+# /13: Cài đặt Periodic Restart (Tự động khởi động lại sau X phút)
+def restart_interval_menu():
+    cfg = load_config()
+    current_intervals = cfg.get("restart_intervals", {})
+
+    print("\n===== PERIODIC RESTART (AUTO RESET) =====")
+    print("Tính năng: Tự động tắt và mở lại game sau khoảng thời gian nhất định (bất kể đang online hay offline).")
+    print("Nhập 0 để tắt tính năng này.")
+    print("-----------------------------------------")
+    print("1. Cài đặt thời gian cho TẤT CẢ package")
+    print("2. Cài đặt thời gian cho TỪNG package riêng lẻ")
+    print("3. Quay lại")
+    
+    choice = input("Chọn: ").strip()
+
+    if choice == "1":
+        try:
+            minutes = int(input("Nhập số phút (VD: 30, 60, 0 để tắt): "))
+        except ValueError:
+            msg("[!] Vui lòng nhập số nguyên.", "err")
+            wait_back_menu()
+            return
+
+        pkgs = get_custom_packages()
+        if not pkgs:
+            msg("[!] Không tìm thấy package nào.", "err")
+            return
+
+        # Cập nhật cho tất cả package tìm thấy
+        for pkg in pkgs:
+            current_intervals[pkg] = minutes
+        
+        cfg["restart_intervals"] = current_intervals
+        save_config(cfg)
+        msg(f"[✓] Đã đặt thời gian restart {minutes} phút cho {len(pkgs)} package.", "ok")
+        wait_back_menu()
+
+    elif choice == "2":
+        pkgs = get_custom_packages()
+        if not pkgs:
+            msg("[!] Không tìm thấy package nào.", "err")
+            wait_back_menu()
+            return
+
+        print("\nDanh sách package:")
+        for i, p in enumerate(pkgs):
+            # Hiển thị thời gian hiện tại nếu có
+            curr_val = current_intervals.get(p, 0)
+            print(f"{i+1}. {p} (Hiện tại: {curr_val} phút)")
+        
+        try:
+            idx = int(input("Chọn số thứ tự package: ")) - 1
+            if 0 <= idx < len(pkgs):
+                target_pkg = pkgs[idx]
+                minutes = int(input(f"Nhập số phút restart cho {target_pkg} (0 để tắt): "))
+                
+                current_intervals[target_pkg] = minutes
+                cfg["restart_intervals"] = current_intervals
+                save_config(cfg)
+                msg(f"[✓] Đã cập nhật {target_pkg} -> {minutes} phút.", "ok")
+            else:
+                msg("[!] Số thứ tự không hợp lệ.", "err")
+        except ValueError:
+            msg("[!] Vui lòng nhập số.", "err")
+        wait_back_menu()
+
+    elif choice == "3":
+        return
+    else:
+        msg("[!] Lựa chọn không hợp lệ.", "err")
+
 # ============ Menu ============
 def menu():
     while True:
@@ -796,7 +918,8 @@ def menu():
 10 Thêm script vào Auto Execute
 11 Export, Import Config
 12 Quản lý Startup Auto
-13 Thoát tool
+13 Cài đặt Auto Restart (Interval Reset)
+14 Thoát tool
 ======================
 """)
         choice = input("Chọn: ").strip()
@@ -825,6 +948,8 @@ def menu():
         elif choice == "12":
             manage_startup()
         elif choice == "13":
+            restart_interval_menu()
+        elif choice == "14":
             break
         else:
             msg("[!] Lựa chọn không hợp lệ.", "err")
