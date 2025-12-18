@@ -96,7 +96,7 @@ FireDelayLabel.BackgroundTransparency = 1
 FireDelayLabel.Position = UDim2.new(0.1, 0, 0.36, 0)
 FireDelayLabel.Size = UDim2.new(0.8, 0, 0, 20)
 FireDelayLabel.Font = Enum.Font.SourceSans
-FireDelayLabel.Text = "Wait after TP (sec):"
+FireDelayLabel.Text = "Wait before Fire (sec):"
 FireDelayLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 FireDelayLabel.TextSize = 14
 
@@ -115,7 +115,7 @@ TpDelayLabel.BackgroundTransparency = 1
 TpDelayLabel.Position = UDim2.new(0.1, 0, 0.56, 0)
 TpDelayLabel.Size = UDim2.new(0.8, 0, 0, 20)
 TpDelayLabel.Font = Enum.Font.SourceSans
-TpDelayLabel.Text = "Wait before Next (sec):"
+TpDelayLabel.Text = "Wait before TP (sec):"
 TpDelayLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 TpDelayLabel.TextSize = 14
 
