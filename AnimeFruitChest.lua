@@ -1,7 +1,8 @@
 --[[
-    Auto Chest Script v3 (Fixed)
-    Logic: Detect -> TP -> Wait(TP Delay) -> Fire -> Wait(Next Delay) -> Repeat
+    Auto Chest Script v4 (Auto Save & Rejoin)
+    Logic: Detect -> TP -> Wait(FireDelay) -> Fire -> Wait(TpDelay) -> Repeat
 ]]
+
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -13,17 +14,18 @@ local Workspace = game:GetService("Workspace")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
+local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
 -- // CONFIGURATION DEFAULTS //
 local Config = {
     IsRunning = false,
     AutoHop = false,
-    FireDelay = 0.5,   -- Time to wait AFTER TP before interacting
-    TpDelay = 3.0  -- Time to wait AFTER interacting before next chest
+    FireDelay = 0.5,   -- Wait AFTER TP (Stabilize)
+    TpDelay = 3.0      -- Wait AFTER Fire (Cooldown)
 }
 
-local FileName = "AutoChestConfig.json"
+local FileName = "AutoChestConfig_v4.json"
 
 -- // PRIORITY SYSTEM //
 local PriorityList = {
@@ -42,16 +44,16 @@ local ToggleBtn = Instance.new("TextButton")
 local HopBtn = Instance.new("TextButton")
 local SaveBtn = Instance.new("TextButton")
 
--- Delay 1 (TP Wait)
-local FireDelayLabel = Instance.new("TextLabel") -- FIXED: Was "FireDelay"
+-- Input 1 (Mapped to FireDelay in Config)
+local FireDelayLabel = Instance.new("TextLabel") 
 local FireDelayInput = Instance.new("TextBox")
 
--- Delay 2 (Next Wait)
-local TpDelayLabel = Instance.new("TextLabel") -- FIXED: Was "TpDelay"
+-- Input 2 (Mapped to TpDelay in Config)
+local TpDelayLabel = Instance.new("TextLabel") 
 local TpDelayInput = Instance.new("TextBox")
 
 ScreenGui.Name = "AutoChestGUI"
-ScreenGui.Parent = game:GetService("CoreGui") 
+ScreenGui.Parent = CoreGui
 
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
@@ -66,7 +68,7 @@ Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.Font = Enum.Font.SourceSansBold
-Title.Text = "Auto Chest v3"
+Title.Text = "Auto Chest v4"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 18
 
@@ -90,7 +92,7 @@ HopBtn.Text = "Auto Hop: OFF"
 HopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 HopBtn.TextSize = 16
 
--- Input 1: TP Delay
+-- Label 1: Wait before Fire (After TP)
 FireDelayLabel.Parent = MainFrame
 FireDelayLabel.BackgroundTransparency = 1
 FireDelayLabel.Position = UDim2.new(0.1, 0, 0.36, 0)
@@ -109,7 +111,7 @@ FireDelayInput.Text = tostring(Config.FireDelay)
 FireDelayInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 FireDelayInput.TextSize = 16
 
--- Input 2: Fire Delay (Next Chest)
+-- Label 2: Wait before TP (Next Chest)
 TpDelayLabel.Parent = MainFrame
 TpDelayLabel.BackgroundTransparency = 1
 TpDelayLabel.Position = UDim2.new(0.1, 0, 0.56, 0)
@@ -139,34 +141,6 @@ SaveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 SaveBtn.TextSize = 16
 
 -- // FUNCTIONS //
-
-local function SaveConfig()
-    Config.FireDelay = tonumber(FireDelayInput.Text) or 0.2
-    Config.TpDelay = tonumber(TpDelayInput.Text) or 1.0
-    
-    local json = HttpService:JSONEncode(Config)
-    writefile(FileName, json)
-    SaveBtn.Text = "Saved!"
-    task.wait(1)
-    SaveBtn.Text = "Save Config"
-end
-
-local function LoadConfig()
-    if isfile(FileName) then
-        local content = readfile(FileName)
-        local success, decoded = pcall(function() return HttpService:JSONDecode(content) end)
-        if success then
-            Config = decoded
-            FireDelayInput.Text = tostring(Config.FireDelay or 0.2)
-            TpDelayInput.Text = tostring(Config.TpDelay or 1.0)
-            
-            if Config.AutoHop then
-                HopBtn.Text = "Auto Hop: ON"
-                HopBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-            end
-        end
-    end
-end
 
 local function ServerHop()
     Title.Text = "Hopping Server..."
@@ -247,14 +221,14 @@ local function TeleportAndCollect()
                             root.CFrame = chest:GetModelCFrame()
                         end
                         
-                        -- 2. WAIT AFTER TP
+                        -- 2. WAIT AFTER TP (Stabilize)
                         local tpWait = tonumber(FireDelayInput.Text) or 0.2
                         if tpWait > 0 then task.wait(tpWait) end
                         
                         -- 3. FIRE PROMPT
                         fireproximityprompt(prompt)
                         
-                        -- 4. WAIT BEFORE NEXT
+                        -- 4. WAIT BEFORE NEXT (Cooldown)
                         local fireWait = tonumber(TpDelayInput.Text) or 1.0
                         if fireWait > 0 then task.wait(fireWait) end
                     end
@@ -262,6 +236,52 @@ local function TeleportAndCollect()
             end
         end
         task.wait(0.2)
+    end
+end
+
+-- // CONFIG SAVE/LOAD WITH AUTORUN //
+
+local function SaveConfig()
+    Config.FireDelay = tonumber(FireDelayInput.Text) or 0.5
+    Config.TpDelay = tonumber(TpDelayInput.Text) or 1.0
+    Config.IsRunning = Config.IsRunning -- Saves current state
+    Config.AutoHop = Config.AutoHop     -- Saves hop state
+    
+    local json = HttpService:JSONEncode(Config)
+    writefile(FileName, json)
+    SaveBtn.Text = "Saved!"
+    task.wait(1)
+    SaveBtn.Text = "Save Config"
+end
+
+local function LoadConfig()
+    if isfile(FileName) then
+        local content = readfile(FileName)
+        local success, decoded = pcall(function() return HttpService:JSONDecode(content) end)
+        if success then
+            Config = decoded
+            FireDelayInput.Text = tostring(Config.FireDelay or 0.5)
+            TpDelayInput.Text = tostring(Config.TpDelay or 1.0)
+            
+            -- Apply Auto Hop State
+            if Config.AutoHop then
+                HopBtn.Text = "Auto Hop: ON"
+                HopBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+            else
+                HopBtn.Text = "Auto Hop: OFF"
+                HopBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            end
+
+            -- Apply Running State & Auto Start
+            if Config.IsRunning then
+                ToggleBtn.Text = "Status: ON"
+                ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+                task.spawn(TeleportAndCollect)
+            else
+                ToggleBtn.Text = "Status: OFF"
+                ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            end
+        end
     end
 end
 
@@ -276,7 +296,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     else
         ToggleBtn.Text = "Status: OFF"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        Title.Text = "Auto Chest v3"
+        Title.Text = "Auto Chest v4"
     end
 end)
 
@@ -297,6 +317,30 @@ SaveBtn.MouseButton1Click:Connect(SaveConfig)
 LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
+end)
+
+-- // AUTO REJOIN (ANTI-KICK/267) //
+spawn(function()
+    while true do
+        wait(1)
+        if CoreGui:FindFirstChild("RobloxPromptGui") then
+            local prompt = CoreGui.RobloxPromptGui:FindFirstChild("promptOverlay")
+            if prompt then
+                local errorPrompt = prompt:FindFirstChild("ErrorPrompt")
+                if errorPrompt then
+                    if errorPrompt.Visible then
+                        -- Kick Detected
+                        Title.Text = "Kicked! Rejoining..."
+                        Config.IsRunning = true -- Ensure it stays true for next server
+                        SaveConfig() -- Save state before rejoining
+                        
+                        wait(2)
+                        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                    end
+                end
+            end
+        end
+    end
 end)
 
 -- Initialize
