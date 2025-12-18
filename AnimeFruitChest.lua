@@ -2,6 +2,11 @@
     Auto Chest Script v3 (Fixed)
     Logic: Detect -> TP -> Wait(TP Delay) -> Fire -> Wait(Next Delay) -> Repeat
 ]]
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+wait(math.random())
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -14,8 +19,8 @@ local LocalPlayer = Players.LocalPlayer
 local Config = {
     IsRunning = false,
     AutoHop = false,
-    TpDelay = 0.2,   -- Time to wait AFTER TP before interacting
-    FireDelay = 1.0  -- Time to wait AFTER interacting before next chest
+    FireDelay = 0.5,   -- Time to wait AFTER TP before interacting
+    TpDelay = 3.0  -- Time to wait AFTER interacting before next chest
 }
 
 local FileName = "AutoChestConfig.json"
@@ -38,12 +43,12 @@ local HopBtn = Instance.new("TextButton")
 local SaveBtn = Instance.new("TextButton")
 
 -- Delay 1 (TP Wait)
-local TpDelayLabel = Instance.new("TextLabel") -- FIXED: Was "TPDelay"
-local TpDelayInput = Instance.new("TextBox")
-
--- Delay 2 (Next Wait)
 local FireDelayLabel = Instance.new("TextLabel") -- FIXED: Was "FireDelay"
 local FireDelayInput = Instance.new("TextBox")
+
+-- Delay 2 (Next Wait)
+local TpDelayLabel = Instance.new("TextLabel") -- FIXED: Was "TpDelay"
+local TpDelayInput = Instance.new("TextBox")
 
 ScreenGui.Name = "AutoChestGUI"
 ScreenGui.Parent = game:GetService("CoreGui") 
@@ -86,42 +91,42 @@ HopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 HopBtn.TextSize = 16
 
 -- Input 1: TP Delay
-TpDelayLabel.Parent = MainFrame
-TpDelayLabel.BackgroundTransparency = 1
-TpDelayLabel.Position = UDim2.new(0.1, 0, 0.36, 0)
-TpDelayLabel.Size = UDim2.new(0.8, 0, 0, 20)
-TpDelayLabel.Font = Enum.Font.SourceSans
-TpDelayLabel.Text = "Wait after TP (sec):"
-TpDelayLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-TpDelayLabel.TextSize = 14
-
-TpDelayInput.Parent = MainFrame
-TpDelayInput.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-TpDelayInput.Position = UDim2.new(0.1, 0, 0.44, 0)
-TpDelayInput.Size = UDim2.new(0.8, 0, 0, 30)
-TpDelayInput.Font = Enum.Font.SourceSans
-TpDelayInput.Text = tostring(Config.TpDelay)
-TpDelayInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-TpDelayInput.TextSize = 16
-
--- Input 2: Fire Delay (Next Chest)
 FireDelayLabel.Parent = MainFrame
 FireDelayLabel.BackgroundTransparency = 1
-FireDelayLabel.Position = UDim2.new(0.1, 0, 0.56, 0)
+FireDelayLabel.Position = UDim2.new(0.1, 0, 0.36, 0)
 FireDelayLabel.Size = UDim2.new(0.8, 0, 0, 20)
 FireDelayLabel.Font = Enum.Font.SourceSans
-FireDelayLabel.Text = "Wait before Next (sec):"
+FireDelayLabel.Text = "Wait after TP (sec):"
 FireDelayLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 FireDelayLabel.TextSize = 14
 
 FireDelayInput.Parent = MainFrame
 FireDelayInput.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-FireDelayInput.Position = UDim2.new(0.1, 0, 0.64, 0)
+FireDelayInput.Position = UDim2.new(0.1, 0, 0.44, 0)
 FireDelayInput.Size = UDim2.new(0.8, 0, 0, 30)
 FireDelayInput.Font = Enum.Font.SourceSans
 FireDelayInput.Text = tostring(Config.FireDelay)
 FireDelayInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 FireDelayInput.TextSize = 16
+
+-- Input 2: Fire Delay (Next Chest)
+TpDelayLabel.Parent = MainFrame
+TpDelayLabel.BackgroundTransparency = 1
+TpDelayLabel.Position = UDim2.new(0.1, 0, 0.56, 0)
+TpDelayLabel.Size = UDim2.new(0.8, 0, 0, 20)
+TpDelayLabel.Font = Enum.Font.SourceSans
+TpDelayLabel.Text = "Wait before Next (sec):"
+TpDelayLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+TpDelayLabel.TextSize = 14
+
+TpDelayInput.Parent = MainFrame
+TpDelayInput.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+TpDelayInput.Position = UDim2.new(0.1, 0, 0.64, 0)
+TpDelayInput.Size = UDim2.new(0.8, 0, 0, 30)
+TpDelayInput.Font = Enum.Font.SourceSans
+TpDelayInput.Text = tostring(Config.TpDelay)
+TpDelayInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+TpDelayInput.TextSize = 16
 
 -- Save Button
 SaveBtn.Parent = MainFrame
@@ -136,8 +141,8 @@ SaveBtn.TextSize = 16
 -- // FUNCTIONS //
 
 local function SaveConfig()
-    Config.TpDelay = tonumber(TpDelayInput.Text) or 0.2
-    Config.FireDelay = tonumber(FireDelayInput.Text) or 1.0
+    Config.FireDelay = tonumber(FireDelayInput.Text) or 0.2
+    Config.TpDelay = tonumber(TpDelayInput.Text) or 1.0
     
     local json = HttpService:JSONEncode(Config)
     writefile(FileName, json)
@@ -152,8 +157,8 @@ local function LoadConfig()
         local success, decoded = pcall(function() return HttpService:JSONDecode(content) end)
         if success then
             Config = decoded
-            TpDelayInput.Text = tostring(Config.TpDelay or 0.2)
-            FireDelayInput.Text = tostring(Config.FireDelay or 1.0)
+            FireDelayInput.Text = tostring(Config.FireDelay or 0.2)
+            TpDelayInput.Text = tostring(Config.TpDelay or 1.0)
             
             if Config.AutoHop then
                 HopBtn.Text = "Auto Hop: ON"
@@ -243,14 +248,14 @@ local function TeleportAndCollect()
                         end
                         
                         -- 2. WAIT AFTER TP
-                        local tpWait = tonumber(TpDelayInput.Text) or 0.2
+                        local tpWait = tonumber(FireDelayInput.Text) or 0.2
                         if tpWait > 0 then task.wait(tpWait) end
                         
                         -- 3. FIRE PROMPT
                         fireproximityprompt(prompt)
                         
                         -- 4. WAIT BEFORE NEXT
-                        local fireWait = tonumber(FireDelayInput.Text) or 1.0
+                        local fireWait = tonumber(TpDelayInput.Text) or 1.0
                         if fireWait > 0 then task.wait(fireWait) end
                     end
                 end
