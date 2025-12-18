@@ -1,6 +1,7 @@
 --[[
-    Auto Chest Script
-]]--
+    Auto Chest Script v3 (Fixed)
+    Logic: Detect -> TP -> Wait(TP Delay) -> Fire -> Wait(Next Delay) -> Repeat
+]]
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -14,10 +15,10 @@ local Config = {
     IsRunning = false,
     AutoHop = false,
     TpDelay = 0.2,   -- Time to wait AFTER TP before interacting
-    FireDelay = 3.0  -- Time to wait AFTER interacting before next chest
+    FireDelay = 1.0  -- Time to wait AFTER interacting before next chest
 }
 
-local FileName = "AutoChestConfig_v3.json"
+local FileName = "AutoChestConfig.json"
 
 -- // PRIORITY SYSTEM //
 local PriorityList = {
@@ -37,11 +38,11 @@ local HopBtn = Instance.new("TextButton")
 local SaveBtn = Instance.new("TextButton")
 
 -- Delay 1 (TP Wait)
-local TpDelayLabel = Instance.new("TPDelay")
+local TpDelayLabel = Instance.new("TextLabel") -- FIXED: Was "TPDelay"
 local TpDelayInput = Instance.new("TextBox")
 
 -- Delay 2 (Next Wait)
-local FireDelayLabel = Instance.new("FireDelay")
+local FireDelayLabel = Instance.new("TextLabel") -- FIXED: Was "FireDelay"
 local FireDelayInput = Instance.new("TextBox")
 
 ScreenGui.Name = "AutoChestGUI"
@@ -52,7 +53,7 @@ MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
-MainFrame.Size = UDim2.new(0, 200, 0, 320) -- Increased height for extra inputs
+MainFrame.Size = UDim2.new(0, 200, 0, 320)
 MainFrame.Active = true
 MainFrame.Draggable = true 
 
@@ -241,14 +242,14 @@ local function TeleportAndCollect()
                             root.CFrame = chest:GetModelCFrame()
                         end
                         
-                        -- 2. WAIT AFTER TP (Configurable)
+                        -- 2. WAIT AFTER TP
                         local tpWait = tonumber(TpDelayInput.Text) or 0.2
                         if tpWait > 0 then task.wait(tpWait) end
                         
                         -- 3. FIRE PROMPT
                         fireproximityprompt(prompt)
                         
-                        -- 4. WAIT BEFORE NEXT (Configurable)
+                        -- 4. WAIT BEFORE NEXT
                         local fireWait = tonumber(FireDelayInput.Text) or 1.0
                         if fireWait > 0 then task.wait(fireWait) end
                     end
