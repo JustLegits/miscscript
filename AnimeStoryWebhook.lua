@@ -20,7 +20,7 @@ if not request then
 end
 
 --// Config Setup
-local configFile = "anime_story_spam_replay.json" 
+local configFile = "anime_story_webhook.json" 
 local config = {
     webhook = "",
     heartbeat = "",
