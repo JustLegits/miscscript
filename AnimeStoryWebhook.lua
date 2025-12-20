@@ -1,5 +1,5 @@
--- Roblox Auto Farm Manager (REAL FPS COUNTER VERSION)
--- Features: Webhook, Heartbeat, Black Screen (Visual Only), Real FPS Counter, Anti-AFK, Auto Save
+-- Roblox Auto Farm Manager (SPAM REMOTE REPLAY VERSION)
+-- Features: Webhook, Heartbeat, Spam Auto Replay, No VFX, Anti-AFK
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -10,7 +10,7 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 local VirtualUser = game:GetService("VirtualUser")
-local RunService = game:GetService("RunService") -- Thêm RunService để tính FPS
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local plr = Players.LocalPlayer
 
 --// Executor Compatibility
@@ -20,14 +20,14 @@ if not request then
 end
 
 --// Config Setup
-local configFile = "anime_story_webhook.json" 
+local configFile = "anime_story_spam_replay.json" 
 local config = {
     webhook = "",
     heartbeat = "",
     delay = 5,
     enabled = false,
     vfx = true,           
-    blackscreen = false,  
+    autoreplay = true,   
     minimized = true
 }
 
@@ -51,101 +51,30 @@ plr.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
---// 2. FPS Calculation Logic (MỚI)
-local CurrentFPS = 60 -- Giá trị mặc định
-RunService.RenderStepped:Connect(function(step)
-    -- Tính FPS bằng cách lấy 1 chia cho thời gian giữa 2 khung hình
-    CurrentFPS = math.floor(1 / step)
+--// 2. AUTO REPLAY LOGIC (SPAM REMOTE)
+-- Hàm bắn Remote
+local function FireReplayRemote()
+    local args = {
+        "battle_replay"
+    }
+    local remote = ReplicatedStorage:WaitForChild("API"):WaitForChild("Utils"):WaitForChild("network"):WaitForChild("RemoteEvent")
+    if remote then
+        remote:FireServer(unpack(args))
+    end
+end
+
+-- Vòng lặp Spam (Đã bỏ check GUI)
+task.spawn(function()
+    while task.wait(1) do -- Spam mỗi 1 giây
+        if config.autoreplay then
+            pcall(function()
+                FireReplayRemote()
+            end)
+        end
+    end
 end)
 
---// 3. Black Screen Logic (Visual Only)
-local BlackScreenGui = Instance.new("ScreenGui")
-if gethui then BlackScreenGui.Parent = gethui() 
-elseif syn and syn.protect_gui then 
-    syn.protect_gui(BlackScreenGui)
-    BlackScreenGui.Parent = CoreGui
-else BlackScreenGui.Parent = CoreGui end
-
-BlackScreenGui.Enabled = false
-BlackScreenGui.IgnoreGuiInset = true
-BlackScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-local BlackFrame = Instance.new("Frame", BlackScreenGui)
-BlackFrame.Size = UDim2.new(1, 0, 1, 0)
-BlackFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-BlackFrame.ZIndex = 9999
-
-local TurnOffBtn = Instance.new("TextButton", BlackFrame)
-TurnOffBtn.Size = UDim2.new(0, 250, 0, 50)
-TurnOffBtn.Position = UDim2.new(0.5, -125, 0.8, 0) 
-TurnOffBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-TurnOffBtn.TextColor3 = Color3.new(1, 1, 1)
-TurnOffBtn.Text = "TẮT MÀN HÌNH ĐEN"
-TurnOffBtn.Font = Enum.Font.SourceSansBold
-TurnOffBtn.TextSize = 16
-TurnOffBtn.AutoButtonColor = true
-
-local StatsLabel = Instance.new("TextLabel", BlackFrame)
-StatsLabel.Size = UDim2.new(1, -40, 0.6, 0)
-StatsLabel.Position = UDim2.new(0, 20, 0.1, 0) 
-StatsLabel.BackgroundTransparency = 1
-StatsLabel.TextColor3 = Color3.new(1, 1, 1)
-StatsLabel.TextXAlignment = Enum.TextXAlignment.Center
-StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
-StatsLabel.Font = Enum.Font.SourceSansBold
-StatsLabel.TextSize = 28
-StatsLabel.Text = "Đang tải thông tin..."
-
--- Hàm cập nhật thông số (Stats) trên màn hình đen
-local function UpdateStats()
-    local level, gems, coins, tokens = "...", "...", "...", "..."
-    pcall(function()
-        if plr:FindFirstChild("leaderstats") and plr.leaderstats:FindFirstChild("Level") then
-            level = plr.leaderstats.Level.Value
-        end
-        if plr:FindFirstChild("Data") then
-            if plr.Data:FindFirstChild("Gems") then gems = plr.Data.Gems.Value end
-            if plr.Data:FindFirstChild("Coins") then coins = plr.Data.Coins.Value end
-        end
-        local pGui = plr:FindFirstChild("PlayerGui")
-        if pGui then
-            local inv = pGui:FindFirstChild("main")
-            if inv and inv:FindFirstChild("Inventory") then
-                local items = inv.Inventory.Base.Content.Items
-                if items and items:FindFirstChild("Trait Tokens") then
-                    tokens = items["Trait Tokens"].Quantity.Text
-                end
-            end
-        end
-    end)
-    
-    -- CẬP NHẬT: Thay "Normal FPS" bằng biến CurrentFPS
-    StatsLabel.Text = string.format(
-        "PLAYER INFOS (FPS: %d)\n\nUser: %s\nLevel: %s\n\n💎 Gems: %s\n💰 Golds: %s\n🎫 Trait Tokens: %s",
-        CurrentFPS, -- Biến FPS thực tế
-        plr.Name, tostring(level), tostring(gems), tostring(coins), tostring(tokens)
-    )
-end
-
--- Logic Bật/Tắt Black Screen
-local function UpdateBlackScreenState(state)
-    config.blackscreen = state
-    BlackScreenGui.Enabled = state 
-    
-    pcall(function()
-        local frame = ScreenGui:FindFirstChild("Frame")
-        if frame and frame:FindFirstChild("Row") and frame.Row:FindFirstChild("BlackBtn") then
-            local btn = frame.Row.BlackBtn
-            btn.Text = "Black Scrn: " .. (state and "ON" or "OFF")
-            btn.BackgroundColor3 = state and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(70, 70, 70)
-        end
-    end)
-    SaveConfig()
-end
-
-TurnOffBtn.MouseButton1Click:Connect(function() UpdateBlackScreenState(false) end)
-
---// 4. SAFE Remove VFX
+--// 3. SAFE Remove VFX
 local function RemoveVFX()
     local rs = game:GetService("ReplicatedStorage")
     local vfx = rs:FindFirstChild("VFX")
@@ -157,7 +86,7 @@ local function RemoveVFX()
     end
 end
 
---// 5. WEBHOOK LOGIC
+--// 4. WEBHOOK LOGIC
 local function SendWebhook()
     local level, gems, coins, tokens = "N/A", "N/A", "N/A", "N/A"
     
@@ -210,14 +139,7 @@ task.spawn(function()
     while task.wait(1) do
         if config.enabled then
             SendWebhook()
-            local start = tick()
-            while tick() - start < (config.delay * 60) do
-                if config.blackscreen then UpdateStats() end
-                task.wait(1) 
-            end
-        else
-            if config.blackscreen then UpdateStats() end
-            task.wait(1)
+            task.wait(config.delay * 60)
         end
     end
 end)
@@ -238,7 +160,7 @@ Frame.Draggable = true
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.Text = "  Anime Story Webhook"
+Title.Text = "  Anime Story (Spam Replay)"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Font = Enum.Font.SourceSansBold
@@ -327,14 +249,14 @@ VFXBtn.Text = "No VFX: " .. (config.vfx and "ON" or "OFF")
 VFXBtn.TextColor3 = Color3.new(1,1,1)
 VFXBtn.Font = Enum.Font.SourceSansBold
 
-local BlackBtn = Instance.new("TextButton", Row)
-BlackBtn.Name = "BlackBtn"
-BlackBtn.Size = UDim2.new(0.5, -5, 1, 0)
-BlackBtn.Position = UDim2.new(0.5, 5, 0, 0)
-BlackBtn.BackgroundColor3 = config.blackscreen and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(70, 70, 70)
-BlackBtn.Text = "Black Scrn: " .. (config.blackscreen and "ON" or "OFF")
-BlackBtn.TextColor3 = Color3.new(1,1,1)
-BlackBtn.Font = Enum.Font.SourceSansBold
+local ReplayBtn = Instance.new("TextButton", Row)
+ReplayBtn.Name = "ReplayBtn"
+ReplayBtn.Size = UDim2.new(0.5, -5, 1, 0)
+ReplayBtn.Position = UDim2.new(0.5, 5, 0, 0)
+ReplayBtn.BackgroundColor3 = config.autoreplay and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(70, 70, 70)
+ReplayBtn.Text = "Spam Replay: " .. (config.autoreplay and "ON" or "OFF")
+ReplayBtn.TextColor3 = Color3.new(1,1,1)
+ReplayBtn.Font = Enum.Font.SourceSansBold
 
 VFXBtn.MouseButton1Click:Connect(function()
     config.vfx = not config.vfx
@@ -344,7 +266,12 @@ VFXBtn.MouseButton1Click:Connect(function()
     SaveConfig()
 end)
 
-BlackBtn.MouseButton1Click:Connect(function() UpdateBlackScreenState(not config.blackscreen) end)
+ReplayBtn.MouseButton1Click:Connect(function()
+    config.autoreplay = not config.autoreplay
+    ReplayBtn.Text = "Spam Replay: " .. (config.autoreplay and "ON" or "OFF")
+    ReplayBtn.BackgroundColor3 = config.autoreplay and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(70, 70, 70)
+    SaveConfig()
+end)
 
 local SaveBtn = Instance.new("TextButton", Frame)
 SaveBtn.Size = UDim2.new(1, -20, 0, 30)
@@ -361,7 +288,6 @@ end)
 
 -- Init
 if config.vfx then RemoveVFX() end 
-if config.blackscreen then UpdateBlackScreenState(true) end
 
 local minimized = config.minimized
 local function ApplyMin()
