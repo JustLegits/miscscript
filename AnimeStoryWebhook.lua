@@ -65,7 +65,7 @@ end
 
 -- Vòng lặp Spam (Đã bỏ check GUI)
 task.spawn(function()
-    while task.wait(1) do -- Spam mỗi 1 giây
+    while task.wait(0.5) do -- Spam mỗi 1 giây
         if config.autoreplay then
             pcall(function()
                 FireReplayRemote()
