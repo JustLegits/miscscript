@@ -8,7 +8,7 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local SelectedBanner = "Standard" 
 local SelectedAmount = 10
-local SelectedDelay = 0.1 
+local SelectedDelay = 0.2 
 local AutoSummonActive = false
 
 -- Remote Event Check
