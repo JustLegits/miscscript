@@ -20,14 +20,14 @@ if not request then
 end
 
 --// Config Setup
-local configFile = "anime_story_event_currency.json" 
+local configFile = "anime_story_webhook.json" 
 local config = {
     webhook = "",
     heartbeat = "",
     delay = 5,
     enabled = false,
     vfx = true,           
-    autoreplay = false,   
+    autoreplay = true,   
     minimized = true
 }
 
