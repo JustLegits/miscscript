@@ -1,5 +1,5 @@
--- Roblox Auto Farm Manager (SPAM REMOTE REPLAY VERSION)
--- Features: Webhook, Heartbeat, Spam Auto Replay, No VFX, Anti-AFK
+-- Roblox Auto Farm Manager (EVENT CURRENCY VERSION)
+-- Features: Webhook (Added Event Items), Heartbeat, Spam Auto Replay, No VFX, Anti-AFK
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -20,14 +20,14 @@ if not request then
 end
 
 --// Config Setup
-local configFile = "anime_story_webhook.json" 
+local configFile = "anime_story_event_currency.json" 
 local config = {
     webhook = "",
     heartbeat = "",
     delay = 5,
     enabled = false,
     vfx = true,           
-    autoreplay = true,   
+    autoreplay = false,   
     minimized = true
 }
 
@@ -52,24 +52,18 @@ plr.Idled:Connect(function()
 end)
 
 --// 2. AUTO REPLAY LOGIC (SPAM REMOTE)
--- Hàm bắn Remote
 local function FireReplayRemote()
-    local args = {
-        "battle_replay"
-    }
+    local args = { "battle_replay" }
     local remote = ReplicatedStorage:WaitForChild("API"):WaitForChild("Utils"):WaitForChild("network"):WaitForChild("RemoteEvent")
     if remote then
         remote:FireServer(unpack(args))
     end
 end
 
--- Vòng lặp Spam (Đã bỏ check GUI)
 task.spawn(function()
-    while task.wait(0.5) do -- Spam mỗi 1 giây
+    while task.wait(1) do
         if config.autoreplay then
-            pcall(function()
-                FireReplayRemote()
-            end)
+            pcall(function() FireReplayRemote() end)
         end
     end
 end)
@@ -86,21 +80,38 @@ local function RemoveVFX()
     end
 end
 
---// 4. WEBHOOK LOGIC
+--// 4. WEBHOOK LOGIC (ĐÃ CẬP NHẬT EVENT CURRENCY)
 local function SendWebhook()
+    -- Khai báo biến mặc định
     local level, gems, coins, tokens = "N/A", "N/A", "N/A", "N/A"
+    local banknotes, masks = "N/A", "N/A" -- Biến mới cho Event
     
     pcall(function()
+        -- Lấy thông tin cơ bản
         if plr:FindFirstChild("leaderstats") then level = plr.leaderstats.Level.Value end
         if plr:FindFirstChild("Data") then
             gems = plr.Data.Gems.Value
             coins = plr.Data.Coins.Value
         end
+
+        -- Lấy thông tin trong Inventory (Traits + Event Items)
         local pGui = plr:WaitForChild("PlayerGui", 1)
         if pGui and pGui:FindFirstChild("main") then
             local items = pGui.main.Inventory.Base.Content.Items
+            
+            -- Lấy Trait Tokens
             if items:FindFirstChild("Trait Tokens") then
                 tokens = items["Trait Tokens"].Quantity.Text
+            end
+
+            -- Lấy Banknote (Mới)
+            if items:FindFirstChild("Banknote") then
+                banknotes = items["Banknote"].Quantity.Text
+            end
+
+            -- Lấy Mask (Mới)
+            if items:FindFirstChild("Mask") then
+                masks = items["Mask"].Quantity.Text
             end
         end
     end)
@@ -111,6 +122,8 @@ local function SendWebhook()
         ["fields"] = {
             { ["name"] = "**User**", ["value"] = plr.Name .. " (Lvl: " .. tostring(level) .. ")", ["inline"] = true },
             { ["name"] = "**Resources**", ["value"] = "💎Gems " .. tostring(gems) .. "\n💰Moneys " .. tostring(coins) .. "\n🎟️Traits " .. tostring(tokens), ["inline"] = false },
+            -- THÊM PHẦN EVENT CURRENCY TẠI ĐÂY:
+            { ["name"] = "**Event Currency**", ["value"] = "💵Banknotes " .. tostring(banknotes) .. "\n🎭Masks " .. tostring(masks), ["inline"] = false },
             { ["name"] = "**Time**", ["value"] = os.date("%Y-%m-%d %H:%M:%S"), ["inline"] = false }
         }
     }
@@ -160,7 +173,7 @@ Frame.Draggable = true
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.Text = "  Anime Story (Spam Replay)"
+Title.Text = "  Anime Story Manager"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Font = Enum.Font.SourceSansBold
