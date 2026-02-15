@@ -19,8 +19,8 @@ if not Remote then warn("[CRITICAL] RemoteEvent not found!") end
 -- // 2. CONFIGURATION & LOAD //
 local FileName = "AnimeStoryInfinite.json"
 local Config = {
-    Map = "Snow Village", 
-    RestartWave = 15,
+    Map = "Demon City", 
+    RestartWave = 10,
     AutoLoop = true, -- New: Saves the Toggle State
     IsRestarting = false
 }
