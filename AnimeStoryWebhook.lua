@@ -110,7 +110,7 @@ local function SendWebhook()
         ["color"] = tonumber(0x00B2FF),
         ["fields"] = {
             { ["name"] = "**User**", ["value"] = plr.Name .. " (Lvl: " .. tostring(level) .. ")", ["inline"] = true },
-            { ["name"] = "**Resources**", ["value"] = "💎 " .. tostring(gems) .. "\n💰 " .. tostring(coins) .. "\n🎟️ " .. tostring(tokens), ["inline"] = false },
+            { ["name"] = "**Resources**", ["value"] = "💎Gems " .. tostring(gems) .. "\n💰Moneys " .. tostring(coins) .. "\n🎟️Traits " .. tostring(tokens), ["inline"] = false },
             { ["name"] = "**Time**", ["value"] = os.date("%Y-%m-%d %H:%M:%S"), ["inline"] = false }
         }
     }
