@@ -1,5 +1,5 @@
--- Roblox Auto Farm Manager (EVENT CURRENCY VERSION)
--- Features: Webhook (Added Event Items), Heartbeat, Spam Auto Replay, No VFX, Anti-AFK
+-- Roblox Auto Farm Manager
+-- Features: Webhook, Heartbeat, Spam Auto Replay, No VFX, Anti-AFK
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -61,7 +61,7 @@ local function FireReplayRemote()
 end
 
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(0.5) do
         if config.autoreplay then
             pcall(function() FireReplayRemote() end)
         end
@@ -80,7 +80,7 @@ local function RemoveVFX()
     end
 end
 
---// 4. WEBHOOK LOGIC (ĐÃ CẬP NHẬT EVENT CURRENCY)
+--// 4. WEBHOOK LOGIC
 local function SendWebhook()
     -- Khai báo biến mặc định
     local level, gems, coins, tokens = "N/A", "N/A", "N/A", "N/A"
@@ -94,7 +94,7 @@ local function SendWebhook()
             coins = plr.Data.Coins.Value
         end
 
-        -- Lấy thông tin trong Inventory (Traits + Event Items)
+        -- Lấy thông tin trong Inventory
         local pGui = plr:WaitForChild("PlayerGui", 1)
         if pGui and pGui:FindFirstChild("main") then
             local items = pGui.main.Inventory.Base.Content.Items
