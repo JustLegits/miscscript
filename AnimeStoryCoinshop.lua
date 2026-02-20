@@ -32,7 +32,6 @@ local itemMappings = {
     traittokens = {"Trait Tokens"},
     stars = {"Green Star", "Purple Star", "Red Star", "Yellow Star"},
     luckpotion = {"Luck Potion I"},
-    luckpotions = {"Luck Potion I"}, 
     dropspotion = {"Drops Potion I"},
     ascendticket = {"Ascend Ticket"},
     statchips = {"Stat Chips", "Elite Stat Chips"}
