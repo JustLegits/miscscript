@@ -30,6 +30,14 @@ FlyButton.Draggable = true
 
 UICorner.Parent = FlyButton
 
+--- Anti-AFK Logic ---
+local VirtualUser = game:GetService("VirtualUser")
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+    warn("Anti-AFK: Prevented idle kick.")
+end)
+
 --- Flight Logic ---
 local function stopFlying()
     if bv then bv:Destroy() end
@@ -95,7 +103,6 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     local key = input.KeyCode.Name:lower()
     
-    -- Changed toggle key to 'p'
     if key == "p" then
         toggleFly()
     elseif keys[key] ~= nil then
@@ -116,3 +123,5 @@ LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.5)
     if flying then startFlying() end
 end)
+
+print("Fly Script Loaded: P to toggle. Anti-AFK Active.")
