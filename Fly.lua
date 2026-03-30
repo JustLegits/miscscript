@@ -6,7 +6,10 @@ local LocalPlayer = Players.LocalPlayer
 local flying = true -- On by default
 local speed = 50
 local bv, bg
-local keys = {w = false, s = false, a = false, d = false, space = false, lshift = false}
+local flyConnection 
+
+-- Grab Roblox's core movement module (Bypasses the GPE issue and adds mobile support)
+local controlModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule"):WaitForChild("ControlModule"))
 
 -- UI Setup
 local ScreenGui = Instance.new("ScreenGui")
@@ -40,6 +43,10 @@ end)
 
 --- Flight Logic ---
 local function stopFlying()
+    if flyConnection then
+        flyConnection:Disconnect()
+        flyConnection = nil
+    end
     if bv then bv:Destroy() end
     if bg then bg:Destroy() end
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -63,22 +70,34 @@ local function startFlying()
     
     char.Humanoid.PlatformStand = true
     
-    task.spawn(function()
-        while flying do
-            local camera = workspace.CurrentCamera
-            local moveDir = Vector3.new(0,0,0)
-            
-            if keys.w then moveDir = moveDir + camera.CFrame.LookVector end
-            if keys.s then moveDir = moveDir - camera.CFrame.LookVector end
-            if keys.a then moveDir = moveDir - camera.CFrame.RightVector end
-            if keys.d then moveDir = moveDir + camera.CFrame.RightVector end
-            if keys.space then moveDir = moveDir + Vector3.new(0, 1, 0) end
-            if keys.lshift then moveDir = moveDir - Vector3.new(0, 1, 0) end
-            
-            bv.Velocity = moveDir * speed
-            bg.CFrame = camera.CFrame
-            RunService.RenderStepped:Wait()
+    flyConnection = RunService.RenderStepped:Connect(function()
+        local camera = workspace.CurrentCamera
+        local direction = controlModule:GetMoveVector()
+        local moveDir = Vector3.new(0,0,0)
+        
+        -- Forward, Backward, Left, Right (Based on camera direction)
+        if direction.X ~= 0 then
+            moveDir = moveDir + (camera.CFrame.RightVector * direction.X)
         end
+        if direction.Z ~= 0 then
+            moveDir = moveDir - (camera.CFrame.LookVector * direction.Z)
+        end
+        
+        -- Up and Down (Checking keys directly bypasses GPE interference)
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDir = moveDir + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDir = moveDir - Vector3.new(0, 1, 0)
+        end
+        
+        -- Normalize vector so diagonal flying isn't twice as fast
+        if moveDir.Magnitude > 0 then
+            moveDir = moveDir.Unit
+        end
+        
+        bv.Velocity = moveDir * speed
+        bg.CFrame = camera.CFrame
     end)
 end
 
@@ -98,22 +117,13 @@ end
 -- Button Toggle
 FlyButton.MouseButton1Click:Connect(toggleFly)
 
--- Keyboard Listeners
+-- Keyboard Toggle (P to toggle, but ignore if typing in chat)
 UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    local key = input.KeyCode.Name:lower()
+    -- GetFocusedTextBox checks if the player is typing in chat so "P" doesn't trigger flight
+    if UserInputService:GetFocusedTextBox() then return end 
     
-    if key == "p" then
+    if input.KeyCode == Enum.KeyCode.P then
         toggleFly()
-    elseif keys[key] ~= nil then
-        keys[key] = true
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    local key = input.KeyCode.Name:lower()
-    if keys[key] ~= nil then
-        keys[key] = false
     end
 end)
 
