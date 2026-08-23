@@ -1,3 +1,7 @@
+# pkg update && pkg upgrade
+# pkg install python
+# Need root, support clone package name
+
 import os
 import sys
 import subprocess
