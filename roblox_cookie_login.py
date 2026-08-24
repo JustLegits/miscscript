@@ -77,7 +77,8 @@ def build_cookie_dict(cookie_value):
         "source_port": 443,
         "last_update_utc": now_micros,
         "source_type": 0,
-        "has_cross_site_ancestor": 0
+        "has_cross_site_ancestor": 0,
+        "is_same_party": 0
     }
 
 def extract_cookie(pkg):
