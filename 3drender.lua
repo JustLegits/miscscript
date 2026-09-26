@@ -14,34 +14,32 @@ local secureGuiParent = type(gethui) == "function" and gethui() or CoreGui
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AntiBurnInGui"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.IgnoreGuiInset = true -- Covers the whole screen
+ScreenGui.IgnoreGuiInset = true 
 ScreenGui.Parent = secureGuiParent
 
 -- 4. Create the Black Cover Frame
 local BlackFrame = Instance.new("Frame")
 BlackFrame.Name = "BlackCover"
 BlackFrame.Size = UDim2.new(1, 0, 1, 0)
-BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- Pitch black
+BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0) 
 BlackFrame.BorderSizePixel = 0
-BlackFrame.ZIndex = 999999998 -- One level below the button so the button is always visible
+BlackFrame.ZIndex = 999999998 
 BlackFrame.Visible = false
 BlackFrame.Parent = ScreenGui
 
--- 5. Create the Toggle Button (Top Right, slightly offset from edges)
+-- 5. Create the Toggle Button (Top Right)
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "ToggleBtn"
 ToggleButton.Size = UDim2.new(0, 110, 0, 35)
--- Position: X is right side minus 130px (leaving a 20px gap), Y is 20px from top
 ToggleButton.Position = UDim2.new(1, -130, 0, 20) 
 ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.Font = Enum.Font.GothamBold
 ToggleButton.TextSize = 14
 ToggleButton.Text = "Render: ON"
-ToggleButton.ZIndex = 999999999 -- Highest priority so it sits on top of the black screen
+ToggleButton.ZIndex = 999999999 
 ToggleButton.Parent = ScreenGui
 
--- Add rounded corners to make the button look nice
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 6)
 UICorner.Parent = ToggleButton
@@ -53,21 +51,21 @@ local function ToggleRender()
     isRenderOff = not isRenderOff
     
     if isRenderOff then
-        -- TURN OFF: Disable 3D Render, show black screen, drop FPS, change button color
+        -- TURN OFF
         RunService:Set3dRenderingEnabled(false)
         BlackFrame.Visible = true
         ToggleButton.Text = "Render: OFF"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40) -- Turns red when off
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
         
         if type(setfpscap) == "function" then
             setfpscap(30)
         end
     else
-        -- TURN ON: Enable 3D Render, hide black screen, restore FPS, restore button color
+        -- TURN ON
         RunService:Set3dRenderingEnabled(true)
         BlackFrame.Visible = false
         ToggleButton.Text = "Render: ON"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40) -- Dark grey when on
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         
         if type(setfpscap) == "function" then
             setfpscap(60)
@@ -75,7 +73,7 @@ local function ToggleRender()
     end
 end
 
--- 7. Input Connections (Clicking or Pressing F4)
+-- 7. Input Connections
 ToggleButton.MouseButton1Click:Connect(ToggleRender)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -84,3 +82,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         ToggleRender()
     end
 end)
+
+-- 8. AUTORUN: Turn off render immediately upon execution
+ToggleRender()
