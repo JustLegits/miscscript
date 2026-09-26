@@ -10,11 +10,14 @@ end
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
 
--- Bảo mật UI khỏi Anti-cheat
+local LocalPlayer = Players.LocalPlayer
+
+-- 2. BẢO MẬT & XÂY DỰNG GIAO DIỆN
 local secureGuiParent = type(gethui) == "function" and gethui() or CoreGui
 
--- Xóa bản cũ nếu script bị chạy chồng chéo
 if secureGuiParent:FindFirstChild("AntiBurnInGui") then
     secureGuiParent.AntiBurnInGui:Destroy()
 end
@@ -52,7 +55,7 @@ UICorner.Parent = ToggleButton
 
 local isRenderOff = false
 
--- Hàm Tắt/Bật
+-- 3. HÀM TẮT/BẬT
 local function ToggleRender()
     isRenderOff = not isRenderOff
     
@@ -80,22 +83,29 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- 2. Thực thi tính năng tắt màn hình ngay lập tức nếu autoexe = true
+-- 4. THỰC THI CHẾ ĐỘ AUTOXE
 if getgenv().autoexe == true then
     if not isRenderOff then
         ToggleRender()
     end
 end
 
--- 3. TỰ ĐỘNG NỐI SCRIPT (Tự duy trì qua nhiều server)
+-- 5. ANTI-AFK (CHỐNG KICK 20 PHÚT)
+if not getgenv().AntiAfkLoaded then
+    getgenv().AntiAfkLoaded = true
+    LocalPlayer.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end)
+    print("Anti-AFK đã được kích hoạt!")
+end
+
+-- 6. TỰ ĐỘNG NỐI SCRIPT (Tự duy trì qua nhiều server)
 local queueTeleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
 if queueTeleport then
     local scriptUrl = "https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/3drender.lua"
-    
-    -- Lấy giá trị autoexe hiện tại truyền cho server tiếp theo
     local autoExeStr = tostring(getgenv().autoexe)
     
-    -- Đoạn lệnh tự động queue chính nó
     local selfExecuteCode = 'getgenv().autoexe = ' .. autoExeStr .. '; loadstring(game:HttpGet("' .. scriptUrl .. '"))()'
     
     queueTeleport(selfExecuteCode)
