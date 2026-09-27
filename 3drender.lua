@@ -91,14 +91,14 @@ if getgenv().autoexe == true then
 end
 
 -- 5. ANTI-AFK (CHỐNG KICK 20 PHÚT)
-if not getgenv().AntiAfkLoaded then
-    getgenv().AntiAfkLoaded = true
-    LocalPlayer.Idled:Connect(function()
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-    end)
-    print("Anti-AFK đã được kích hoạt!")
-end
+--if not getgenv().AntiAfkLoaded then
+--    getgenv().AntiAfkLoaded = true
+--    LocalPlayer.Idled:Connect(function()
+--        VirtualUser:CaptureController()
+--        VirtualUser:ClickButton2(Vector2.new())
+--    end)
+--    print("Anti-AFK đã được kích hoạt!")
+--end
 
 -- 6. TỰ ĐỘNG NỐI SCRIPT (Tự duy trì qua nhiều server)
 local queueTeleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
