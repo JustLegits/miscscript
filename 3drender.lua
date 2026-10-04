@@ -6,7 +6,7 @@ local CONFIG_FILE = "AntiBurnIn_autoexe.txt"
 local SCRIPT_URL  = "https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/3drender.lua"
 local GUI_NAME    = "AntiBurnInGui"
 local STATE_KEY   = "AntiBurnInState_Secure"
-local FADE_TIME   = 5   -- Giây không tương tác trước khi làm mờ UI
+local FADE_TIME   = 3   -- Giây không tương tác trước khi làm mờ UI
 local RESTORE_FPS = 60  -- FPS khôi phục khi bật render hoặc cleanup
 
 if not game:IsLoaded() then
