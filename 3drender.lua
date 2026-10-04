@@ -1,632 +1,317 @@
 --// =========================================================
---// AntiBurnIn
---// Long-run / Persistent AutoExecute / No Duplicate
+--// AntiBurnIn - Production / Long-Run Final (Patched)
 --// =========================================================
 
---============================================================
--- CONFIG
---============================================================
-
 local CONFIG_FILE = "AntiBurnIn_autoexe.txt"
-
-local SCRIPT_URL =
-    "https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/3drender.lua"
-
-local GUI_NAME = "AntiBurnInGui"
-local STATE_KEY = "AntiBurnInState"
-
---============================================================
--- SERVICES
---============================================================
+local SCRIPT_URL  = "https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/3drender.lua"
+local GUI_NAME    = "AntiBurnInGui"
+local STATE_KEY   = "AntiBurnInState_Secure"
+local FADE_TIME   = 5   -- Giây không tương tác trước khi làm mờ UI
+local RESTORE_FPS = 60  -- FPS khôi phục khi bật render hoặc cleanup
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
-local Players = game:GetService("Players")
+local RunService       = game:GetService("RunService")
+local TweenService     = game:GetService("TweenService")
+local CoreGui          = game:GetService("CoreGui")
 
-local LocalPlayer = Players.LocalPlayer
+local gethuiFunc     = type(gethui) == "function" and gethui or nil
+local setFpsCap      = type(setfpscap) == "function" and setfpscap or nil
+local queueTeleport  = type(queue_on_teleport) == "function" and queue_on_teleport
+    or (syn and type(syn.queue_on_teleport) == "function" and syn.queue_on_teleport)
+    or (fluxus and type(fluxus.queue_on_teleport) == "function" and fluxus.queue_on_teleport)
 
---============================================================
--- EXECUTOR API
---============================================================
+local fileSupported  = type(isfile) == "function" and type(readfile) == "function" and type(writefile) == "function"
+local secureParent   = gethuiFunc and gethuiFunc() or CoreGui
 
-local gethuiFunc =
-    type(gethui) == "function" and gethui or nil
-
-local setFpsCap =
-    type(setfpscap) == "function" and setfpscap or nil
-
-local queueTeleport =
-    type(queue_on_teleport) == "function"
-        and queue_on_teleport
-    or (syn and type(syn.queue_on_teleport) == "function"
-        and syn.queue_on_teleport)
-    or (fluxus and type(fluxus.queue_on_teleport) == "function"
-        and fluxus.queue_on_teleport)
-
-local fileSupported =
-    type(isfile) == "function"
-    and type(readfile) == "function"
-    and type(writefile) == "function"
-
-local secureGuiParent =
-    gethuiFunc and gethuiFunc() or CoreGui
-
---============================================================
--- FILE CONFIG
---============================================================
-
-local function SaveAutoExecute(value)
-
-    if not fileSupported then
-        return false
-    end
-
-    local content = value and "true" or "false"
-
-    local success = pcall(function()
-        writefile(CONFIG_FILE, content)
-    end)
-
-    return success
+-- Dọn dẹp phiên bản cũ nếu đang chạy
+if getgenv()[STATE_KEY] and type(getgenv()[STATE_KEY].Cleanup) == "function" then
+    pcall(function() getgenv()[STATE_KEY]:Cleanup() end)
 end
 
+pcall(function()
+    local existingGui = secureParent:FindFirstChild(GUI_NAME)
+    if existingGui then existingGui:Destroy() end
+end)
 
-local function LoadAutoExecute()
+--============================================================
+-- CONFIG HANDLER (STRICT PARSING)
+--============================================================
 
-    -- Executor không hỗ trợ file API
-    if not fileSupported then
-        return true
+local function SaveConfig(val)
+    if not fileSupported then return false end
+    return pcall(function() writefile(CONFIG_FILE, val and "true" or "false") end)
+end
+
+local function LoadConfig()
+    if not fileSupported or not isfile(CONFIG_FILE) then return true end
+    local success, content = pcall(function() return readfile(CONFIG_FILE) end)
+    if success and type(content) == "string" then
+        content = content:lower():gsub("%s+", "")
+        if content == "true" then return true end
+        if content == "false" then return false end
     end
-
-    -- Chưa có file → tạo mặc định ON
-    if not isfile(CONFIG_FILE) then
-        SaveAutoExecute(true)
-        return true
-    end
-
-    local success, content = pcall(function()
-        return readfile(CONFIG_FILE)
-    end)
-
-    if not success then
-        return true
-    end
-
-    content = tostring(content):lower()
-
-    if content == "false" then
-        return false
-    end
-
-    if content == "true" then
-        return true
-    end
-
-    -- File bị lỗi → reset về ON
-    SaveAutoExecute(true)
-
     return true
 end
 
-
-local autoExecute = LoadAutoExecute()
-
-getgenv().autoexe = autoExecute
+local isAutoExec = LoadConfig()
+getgenv().AntiBurnIn_AutoExec = isAutoExec
 
 --============================================================
--- CLEANUP PREVIOUS INSTANCE
---============================================================
-
-local oldState = getgenv()[STATE_KEY]
-
-if oldState then
-
-    if oldState.Connections then
-
-        for _, connection in pairs(oldState.Connections) do
-
-            if connection then
-
-                pcall(function()
-                    connection:Disconnect()
-                end)
-
-            end
-
-        end
-
-    end
-
-
-    if oldState.Gui then
-
-        pcall(function()
-            oldState.Gui:Destroy()
-        end)
-
-    end
-
-end
-
-
--- Fallback cleanup
-pcall(function()
-
-    local existingGui =
-        secureGuiParent:FindFirstChild(GUI_NAME)
-
-    if existingGui then
-        existingGui:Destroy()
-    end
-
-end)
-
-
---============================================================
--- STATE
+-- STATE SETUP
 --============================================================
 
 local State = {
-
-    Connections = {},
-
-    Gui = nil,
-    BlackFrame = nil,
-
-    RenderButton = nil,
-    AutoButton = nil,
-
-    RenderOff = false,
-    AutoExecute = autoExecute,
-
-    Destroyed = false,
+    Connections     = {},
+    Gui             = nil,
+    BlackFrame      = nil,
+    ButtonContainer = nil,
+    RenderButton    = nil,
+    AutoButton      = nil,
+    RenderOff       = false,
+    AutoExecute     = isAutoExec,
+    TeleportQueued  = false,
+    Destroyed       = false,
+    IsFaded         = false,
 }
-
 getgenv()[STATE_KEY] = State
 
-
---============================================================
--- CONNECTION MANAGER
---============================================================
-
-local function AddConnection(connection)
-
-    if connection then
-        table.insert(State.Connections, connection)
-    end
-
-    return connection
+local function AddConnection(conn)
+    if conn then table.insert(State.Connections, conn) end
+    return conn
 end
 
-
-local function DisconnectAll()
-
-    for index, connection in pairs(State.Connections) do
-
-        if connection then
-
-            pcall(function()
-                connection:Disconnect()
-            end)
-
-        end
-
-        State.Connections[index] = nil
-
-    end
-
-end
-
-
 --============================================================
--- GUI
+-- UI CONSTRUCTION
 --============================================================
 
 local ScreenGui = Instance.new("ScreenGui")
-
 ScreenGui.Name = GUI_NAME
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
-
-pcall(function()
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-end)
-
-ScreenGui.Parent = secureGuiParent
-
+ScreenGui.DisplayOrder = 999999
+ScreenGui.Parent = secureParent
 State.Gui = ScreenGui
 
-
---============================================================
--- BLACK COVER
---============================================================
-
 local BlackFrame = Instance.new("Frame")
-
 BlackFrame.Name = "BlackCover"
-
-BlackFrame.Size =
-    UDim2.new(1, 0, 1, 0)
-
-BlackFrame.Position =
-    UDim2.new(0, 0, 0, 0)
-
-BlackFrame.BackgroundColor3 =
-    Color3.fromRGB(0, 0, 0)
-
+BlackFrame.Size = UDim2.new(1, 0, 1, 0)
+BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 BlackFrame.BorderSizePixel = 0
-
 BlackFrame.Visible = false
-
-BlackFrame.ZIndex = 999999998
-
+BlackFrame.ZIndex = 1
 BlackFrame.Parent = ScreenGui
-
 State.BlackFrame = BlackFrame
 
+local ButtonContainer = Instance.new("Frame")
+ButtonContainer.Name = "ButtonContainer"
+ButtonContainer.BackgroundTransparency = 1
+ButtonContainer.Size = UDim2.new(0, 240, 0, 40)
+ButtonContainer.Position = UDim2.new(1, -250, 0, 20)
+ButtonContainer.ZIndex = 2
+ButtonContainer.Parent = ScreenGui
+State.ButtonContainer = ButtonContainer
 
---============================================================
--- BUTTON FACTORY
---============================================================
-
-local function CreateButton(name, position)
-
-    local button = Instance.new("TextButton")
-
-    button.Name = name
-
-    button.Size =
-        UDim2.new(0, 110, 0, 35)
-
-    button.Position = position
-
-    button.BackgroundColor3 =
-        Color3.fromRGB(40, 40, 40)
-
-    button.TextColor3 =
-        Color3.fromRGB(255, 255, 255)
-
-    button.Font =
-        Enum.Font.GothamBold
-
-    button.TextSize = 14
-
-    button.ZIndex = 999999999
-
-    button.AutoButtonColor = true
-
-    button.Parent = ScreenGui
-
+local function CreateButton(name, xOffset)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(0, 110, 0, 35)
+    btn.Position = UDim2.new(0, xOffset, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    btn.TextColor3 = Color3.fromRGB(240, 240, 240)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    btn.AutoButtonColor = true
+    btn.Parent = ButtonContainer
 
     local corner = Instance.new("UICorner")
-
-    corner.CornerRadius =
-        UDim.new(0, 6)
-
-    corner.Parent = button
-
-
-    return button
-
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    return btn
 end
 
+State.RenderButton = CreateButton("RenderButton", 0)
+State.AutoButton   = CreateButton("AutoButton", 120)
 
 --============================================================
--- CREATE BUTTONS
+-- AUTO-FADE UX (OLED PROTECTION)
 --============================================================
 
-local RenderButton = CreateButton(
-    "RenderButton",
-    UDim2.new(1, -250, 0, 20)
-)
+local lastActive = os.clock()
+local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-local AutoButton = CreateButton(
-    "AutoExecuteButton",
-    UDim2.new(1, -130, 0, 20)
-)
+local function SetUIFade(faded)
+    if State.Destroyed or State.IsFaded == faded then return end
+    State.IsFaded = faded
 
-State.RenderButton = RenderButton
-State.AutoButton = AutoButton
+    local targetTrans = faded and 0.85 or 0
 
+    TweenService:Create(State.RenderButton, tweenInfo, {
+        BackgroundTransparency = targetTrans,
+        TextTransparency = targetTrans
+    }):Play()
 
---============================================================
--- BUTTON UPDATE
---============================================================
+    TweenService:Create(State.AutoButton, tweenInfo, {
+        BackgroundTransparency = targetTrans,
+        TextTransparency = targetTrans
+    }):Play()
+end
 
-local function UpdateRenderButton()
-
-    if State.RenderOff then
-
-        RenderButton.Text = "Render: OFF"
-
-        RenderButton.BackgroundColor3 =
-            Color3.fromRGB(180, 40, 40)
-
-    else
-
-        RenderButton.Text = "Render: ON"
-
-        RenderButton.BackgroundColor3 =
-            Color3.fromRGB(40, 40, 40)
-
+local function RegisterActivity()
+    lastActive = os.clock()
+    if State.IsFaded then
+        SetUIFade(false)
     end
-
 end
 
+--============================================================
+-- TELEPORT BOOTSTRAP PIPELINE
+--============================================================
 
-local function UpdateAutoButton()
+local function ApplyTeleportQueue()
+    if State.TeleportQueued or not queueTeleport then return end
+
+    local bootstrapPayload = table.concat({
+        'local f = "' .. CONFIG_FILE .. '"',
+        'local run = true',
+        'if type(isfile) == "function" and type(readfile) == "function" and isfile(f) then',
+        '    local s, c = pcall(readfile, f)',
+        '    if s and tostring(c):lower():gsub("%%s+", "") == "false" then run = false end',
+        'end',
+        'if run then loadstring(game:HttpGet("' .. SCRIPT_URL .. '"))() end'
+    }, "; ")
+
+    -- Chỉ đánh dấu đã queue khi hàm thực thi không gặp lỗi
+    local success = pcall(function()
+        queueTeleport(bootstrapPayload)
+    end)
+
+    if success then
+        State.TeleportQueued = true
+    end
+end
+
+--============================================================
+-- LOGIC CONTROLS
+--============================================================
+
+local function UpdateUI()
+    if State.RenderOff then
+        State.RenderButton.Text = "Render: OFF"
+        State.RenderButton.BackgroundColor3 = Color3.fromRGB(160, 40, 40)
+    else
+        State.RenderButton.Text = "Render: ON"
+        State.RenderButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    end
 
     if State.AutoExecute then
-
-        AutoButton.Text = "AutoExec: ON"
-
-        AutoButton.BackgroundColor3 =
-            Color3.fromRGB(40, 120, 60)
-
+        State.AutoButton.Text = "AutoExec: ON"
+        State.AutoButton.BackgroundColor3 = Color3.fromRGB(35, 110, 50)
     else
-
-        AutoButton.Text = "AutoExec: OFF"
-
-        AutoButton.BackgroundColor3 =
-            Color3.fromRGB(100, 100, 100)
-
+        State.AutoButton.Text = "AutoExec: OFF"
+        State.AutoButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     end
-
 end
 
+local function SetRender(enable3D)
+    if State.Destroyed then return end
+    State.RenderOff = not enable3D
+    pcall(function() RunService:Set3dRenderingEnabled(enable3D) end)
+    State.BlackFrame.Visible = not enable3D
 
---============================================================
--- RENDER CONTROL
---============================================================
-
-local function SetRender(enabled)
-
-    if State.Destroyed then
-        return
-    end
-
-
-    if enabled then
-
-        State.RenderOff = false
-
-        pcall(function()
-            RunService:Set3dRenderingEnabled(true)
-        end)
-
-        BlackFrame.Visible = false
-
-        if setFpsCap then
-
-            pcall(function()
-                setFpsCap(60)
-            end)
-
+    if setFpsCap then
+        if not enable3D then
+            pcall(function() setFpsCap(30) end)
+        else
+            pcall(function() setFpsCap(RESTORE_FPS) end)
         end
-
-    else
-
-        State.RenderOff = true
-
-        pcall(function()
-            RunService:Set3dRenderingEnabled(false)
-        end)
-
-        BlackFrame.Visible = true
-
-        if setFpsCap then
-
-            pcall(function()
-                setFpsCap(30)
-            end)
-
-        end
-
     end
 
-
-    UpdateRenderButton()
-
+    RegisterActivity()
+    UpdateUI()
 end
 
+local function SetAutoExecute(enable)
+    State.AutoExecute = enable
+    getgenv().AntiBurnIn_AutoExec = enable
+    SaveConfig(enable)
 
-local function ToggleRender()
+    if enable then
+        ApplyTeleportQueue()
+    end
 
-    SetRender(not State.RenderOff)
-
+    RegisterActivity()
+    UpdateUI()
 end
-
 
 --============================================================
--- AUTO EXECUTE CONTROL
+-- CONNECTIONS & EVENTS
 --============================================================
 
-local function SetAutoExecute(enabled)
+AddConnection(State.RenderButton.MouseButton1Click:Connect(function()
+    SetRender(State.RenderOff)
+end))
 
-    State.AutoExecute = enabled
-
-    getgenv().autoexe = enabled
-
-    -- Chỉ ghi file khi người dùng thực sự thay đổi setting
-    SaveAutoExecute(enabled)
-
-    UpdateAutoButton()
-
-end
-
-
-local function ToggleAutoExecute()
-
+AddConnection(State.AutoButton.MouseButton1Click:Connect(function()
     SetAutoExecute(not State.AutoExecute)
+end))
 
-end
+AddConnection(UserInputService.InputBegan:Connect(function(input, processed)
+    if State.Destroyed or processed then return end
+    RegisterActivity()
 
+    if input.KeyCode == Enum.KeyCode.F4 then
+        SetRender(State.RenderOff)
+    end
+end))
 
---============================================================
--- BUTTON EVENTS
---============================================================
+AddConnection(ButtonContainer.MouseEnter:Connect(RegisterActivity))
 
-AddConnection(
-
-    RenderButton.MouseButton1Click:Connect(function()
-
-        ToggleRender()
-
-    end)
-
-)
-
-
-AddConnection(
-
-    AutoButton.MouseButton1Click:Connect(function()
-
-        ToggleAutoExecute()
-
-    end)
-
-)
-
-
---============================================================
--- F4
---============================================================
-
-AddConnection(
-
-    UserInputService.InputBegan:Connect(
-        function(input, gameProcessed)
-
-            if State.Destroyed then
-                return
-            end
-
-            if gameProcessed then
-                return
-            end
-
-            if input.KeyCode == Enum.KeyCode.F4 then
-
-                ToggleRender()
-
-            end
-
-        end
-    )
-
-)
-
-
---============================================================
--- INITIAL STATE
---============================================================
-
-UpdateAutoButton()
-
--- Render OFF mặc định khi AutoExecute đang ON
-if State.AutoExecute then
-    SetRender(false)
-else
-    SetRender(true)
-end
-
-
---============================================================
--- QUEUE TELEPORT
---============================================================
-
-if State.AutoExecute and queueTeleport then
-
-    local autoExeValue =
-        tostring(State.AutoExecute)
-
-    local teleportCode =
-        'getgenv().autoexe = ' ..
-        autoExeValue ..
-        '; ' ..
-        'loadstring(game:HttpGet("' ..
-        SCRIPT_URL ..
-        '"))()'
-
-    pcall(function()
-        queueTeleport(teleportCode)
-    end)
-
-end
-
+-- Kiểm tra thời gian không hoạt động mỗi frame (chi phí so sánh gần như bằng 0)
+AddConnection(RunService.Heartbeat:Connect(function()
+    if not State.IsFaded and (os.clock() - lastActive) > FADE_TIME then
+        SetUIFade(true)
+    end
+end))
 
 --============================================================
 -- CLEANUP
 --============================================================
 
 function State:Cleanup()
-
-    if self.Destroyed then
-        return
-    end
-
+    if self.Destroyed then return end
     self.Destroyed = true
 
+    for _, conn in pairs(self.Connections) do
+        if conn then pcall(function() conn:Disconnect() end) end
+    end
+    table.clear(self.Connections)
 
-    DisconnectAll()
-
-
-    pcall(function()
-        RunService:Set3dRenderingEnabled(true)
-    end)
-
+    pcall(function() RunService:Set3dRenderingEnabled(true) end)
 
     if setFpsCap then
-
-        pcall(function()
-            setFpsCap(60)
-        end)
-
+        pcall(function() setFpsCap(RESTORE_FPS) end)
     end
-
 
     if self.Gui then
-
-        pcall(function()
-            self.Gui:Destroy()
-        end)
-
+        pcall(function() self.Gui:Destroy() end)
     end
-
 
     if getgenv()[STATE_KEY] == self then
         getgenv()[STATE_KEY] = nil
     end
-
 end
 
-
 --============================================================
--- STATUS
+-- INITIALIZATION
 --============================================================
 
-print("--------------------------------")
-print("[AntiBurnIn] Loaded")
-print("[AntiBurnIn] Render : F4")
-print(
-    "[AntiBurnIn] AutoExec : "
-    .. tostring(State.AutoExecute)
-)
+UpdateUI()
+SetRender(false)
 
-if fileSupported then
-    print(
-        "[AntiBurnIn] Config : "
-        .. CONFIG_FILE
-    )
-else
-    print(
-        "[AntiBurnIn] File API unavailable"
-    )
+if State.AutoExecute then
+    ApplyTeleportQueue()
 end
-
-print("--------------------------------")
