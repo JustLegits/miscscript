@@ -1,14 +1,13 @@
 --// =========================================================
---// AntiBurnIn - Long Run / No Duplicate / Cleanup
+--// AntiBurnIn
+--// Long-run / Persistent AutoExecute / No Duplicate
 --// =========================================================
 
 --============================================================
--- 1. CONFIG
+-- CONFIG
 --============================================================
 
-if getgenv().autoexe == nil then
-    getgenv().autoexe = true
-end
+local CONFIG_FILE = "AntiBurnIn_autoexe.txt"
 
 local SCRIPT_URL =
     "https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/3drender.lua"
@@ -17,103 +16,182 @@ local GUI_NAME = "AntiBurnInGui"
 local STATE_KEY = "AntiBurnInState"
 
 --============================================================
--- 2. WAIT FOR GAME
+-- SERVICES
 --============================================================
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
---============================================================
--- 3. SERVICES
---============================================================
-
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
-local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
 --============================================================
--- 4. EXECUTOR COMPATIBILITY
+-- EXECUTOR API
 --============================================================
 
 local gethuiFunc =
     type(gethui) == "function" and gethui or nil
 
+local setFpsCap =
+    type(setfpscap) == "function" and setfpscap or nil
+
 local queueTeleport =
-    type(queue_on_teleport) == "function" and queue_on_teleport
+    type(queue_on_teleport) == "function"
+        and queue_on_teleport
     or (syn and type(syn.queue_on_teleport) == "function"
         and syn.queue_on_teleport)
     or (fluxus and type(fluxus.queue_on_teleport) == "function"
         and fluxus.queue_on_teleport)
 
-local setFpsCap =
-    type(setfpscap) == "function" and setfpscap or nil
+local fileSupported =
+    type(isfile) == "function"
+    and type(readfile) == "function"
+    and type(writefile) == "function"
 
 local secureGuiParent =
     gethuiFunc and gethuiFunc() or CoreGui
 
 --============================================================
--- 5. CLEANUP OLD INSTANCE
+-- FILE CONFIG
+--============================================================
+
+local function SaveAutoExecute(value)
+
+    if not fileSupported then
+        return false
+    end
+
+    local content = value and "true" or "false"
+
+    local success = pcall(function()
+        writefile(CONFIG_FILE, content)
+    end)
+
+    return success
+end
+
+
+local function LoadAutoExecute()
+
+    -- Executor không hỗ trợ file API
+    if not fileSupported then
+        return true
+    end
+
+    -- Chưa có file → tạo mặc định ON
+    if not isfile(CONFIG_FILE) then
+        SaveAutoExecute(true)
+        return true
+    end
+
+    local success, content = pcall(function()
+        return readfile(CONFIG_FILE)
+    end)
+
+    if not success then
+        return true
+    end
+
+    content = tostring(content):lower()
+
+    if content == "false" then
+        return false
+    end
+
+    if content == "true" then
+        return true
+    end
+
+    -- File bị lỗi → reset về ON
+    SaveAutoExecute(true)
+
+    return true
+end
+
+
+local autoExecute = LoadAutoExecute()
+
+getgenv().autoexe = autoExecute
+
+--============================================================
+-- CLEANUP PREVIOUS INSTANCE
 --============================================================
 
 local oldState = getgenv()[STATE_KEY]
 
 if oldState then
 
-    -- Disconnect every registered connection
     if oldState.Connections then
+
         for _, connection in pairs(oldState.Connections) do
+
             if connection then
+
                 pcall(function()
                     connection:Disconnect()
                 end)
+
             end
+
         end
+
     end
 
-    -- Destroy old GUI
+
     if oldState.Gui then
+
         pcall(function()
             oldState.Gui:Destroy()
         end)
+
     end
 
-    -- Fallback: destroy by name too
-    pcall(function()
-        local oldGui = secureGuiParent:FindFirstChild(GUI_NAME)
-
-        if oldGui then
-            oldGui:Destroy()
-        end
-    end)
-
-    -- Clear old state
-    getgenv()[STATE_KEY] = nil
 end
 
+
+-- Fallback cleanup
+pcall(function()
+
+    local existingGui =
+        secureGuiParent:FindFirstChild(GUI_NAME)
+
+    if existingGui then
+        existingGui:Destroy()
+    end
+
+end)
+
+
 --============================================================
--- 6. CREATE NEW STATE
+-- STATE
 --============================================================
 
 local State = {
-    Connections = {},
-    Gui = nil,
 
+    Connections = {},
+
+    Gui = nil,
     BlackFrame = nil,
-    ToggleButton = nil,
+
+    RenderButton = nil,
+    AutoButton = nil,
 
     RenderOff = false,
+    AutoExecute = autoExecute,
+
     Destroyed = false,
 }
 
 getgenv()[STATE_KEY] = State
 
+
 --============================================================
--- 7. CONNECTION MANAGER
+-- CONNECTION MANAGER
 --============================================================
 
 local function AddConnection(connection)
@@ -125,23 +203,28 @@ local function AddConnection(connection)
     return connection
 end
 
+
 local function DisconnectAll()
 
-    for i, connection in pairs(State.Connections) do
+    for index, connection in pairs(State.Connections) do
 
         if connection then
+
             pcall(function()
                 connection:Disconnect()
             end)
+
         end
 
-        State.Connections[i] = nil
+        State.Connections[index] = nil
+
     end
 
 end
 
+
 --============================================================
--- 8. GUI
+-- GUI
 --============================================================
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -158,64 +241,147 @@ ScreenGui.Parent = secureGuiParent
 
 State.Gui = ScreenGui
 
+
 --============================================================
--- 9. BLACK COVER
+-- BLACK COVER
 --============================================================
 
 local BlackFrame = Instance.new("Frame")
 
 BlackFrame.Name = "BlackCover"
-BlackFrame.Size = UDim2.new(1, 0, 1, 0)
-BlackFrame.Position = UDim2.new(0, 0, 0, 0)
 
-BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlackFrame.Size =
+    UDim2.new(1, 0, 1, 0)
+
+BlackFrame.Position =
+    UDim2.new(0, 0, 0, 0)
+
+BlackFrame.BackgroundColor3 =
+    Color3.fromRGB(0, 0, 0)
+
 BlackFrame.BorderSizePixel = 0
 
 BlackFrame.Visible = false
+
 BlackFrame.ZIndex = 999999998
 
 BlackFrame.Parent = ScreenGui
 
 State.BlackFrame = BlackFrame
 
---============================================================
--- 10. TOGGLE BUTTON
---============================================================
-
-local ToggleButton = Instance.new("TextButton")
-
-ToggleButton.Name = "ToggleBtn"
-
-ToggleButton.Size = UDim2.new(0, 110, 0, 35)
-ToggleButton.Position = UDim2.new(1, -130, 0, 20)
-
-ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.TextSize = 14
-
-ToggleButton.Text = "Render: ON"
-
-ToggleButton.AutoButtonColor = true
-
-ToggleButton.ZIndex = 999999999
-
-ToggleButton.Parent = ScreenGui
-
-State.ToggleButton = ToggleButton
 
 --============================================================
--- 11. BUTTON CORNER
+-- BUTTON FACTORY
 --============================================================
 
-local UICorner = Instance.new("UICorner")
+local function CreateButton(name, position)
 
-UICorner.CornerRadius = UDim.new(0, 6)
-UICorner.Parent = ToggleButton
+    local button = Instance.new("TextButton")
+
+    button.Name = name
+
+    button.Size =
+        UDim2.new(0, 110, 0, 35)
+
+    button.Position = position
+
+    button.BackgroundColor3 =
+        Color3.fromRGB(40, 40, 40)
+
+    button.TextColor3 =
+        Color3.fromRGB(255, 255, 255)
+
+    button.Font =
+        Enum.Font.GothamBold
+
+    button.TextSize = 14
+
+    button.ZIndex = 999999999
+
+    button.AutoButtonColor = true
+
+    button.Parent = ScreenGui
+
+
+    local corner = Instance.new("UICorner")
+
+    corner.CornerRadius =
+        UDim.new(0, 6)
+
+    corner.Parent = button
+
+
+    return button
+
+end
+
 
 --============================================================
--- 12. RENDER TOGGLE
+-- CREATE BUTTONS
+--============================================================
+
+local RenderButton = CreateButton(
+    "RenderButton",
+    UDim2.new(1, -250, 0, 20)
+)
+
+local AutoButton = CreateButton(
+    "AutoExecuteButton",
+    UDim2.new(1, -130, 0, 20)
+)
+
+State.RenderButton = RenderButton
+State.AutoButton = AutoButton
+
+
+--============================================================
+-- BUTTON UPDATE
+--============================================================
+
+local function UpdateRenderButton()
+
+    if State.RenderOff then
+
+        RenderButton.Text = "Render: OFF"
+
+        RenderButton.BackgroundColor3 =
+            Color3.fromRGB(180, 40, 40)
+
+    else
+
+        RenderButton.Text = "Render: ON"
+
+        RenderButton.BackgroundColor3 =
+            Color3.fromRGB(40, 40, 40)
+
+    end
+
+end
+
+
+local function UpdateAutoButton()
+
+    if State.AutoExecute then
+
+        AutoButton.Text = "AutoExec: ON"
+
+        AutoButton.BackgroundColor3 =
+            Color3.fromRGB(40, 120, 60)
+
+    else
+
+        AutoButton.Text = "AutoExec: OFF"
+
+        AutoButton.BackgroundColor3 =
+            Color3.fromRGB(100, 100, 100)
+
+    end
+
+end
+
+
+--============================================================
+-- RENDER CONTROL
 --============================================================
 
 local function SetRender(enabled)
@@ -223,6 +389,7 @@ local function SetRender(enabled)
     if State.Destroyed then
         return
     end
+
 
     if enabled then
 
@@ -232,20 +399,14 @@ local function SetRender(enabled)
             RunService:Set3dRenderingEnabled(true)
         end)
 
-        if BlackFrame then
-            BlackFrame.Visible = false
-        end
-
-        if ToggleButton then
-            ToggleButton.Text = "Render: ON"
-            ToggleButton.BackgroundColor3 =
-                Color3.fromRGB(40, 40, 40)
-        end
+        BlackFrame.Visible = false
 
         if setFpsCap then
+
             pcall(function()
                 setFpsCap(60)
             end)
+
         end
 
     else
@@ -256,25 +417,23 @@ local function SetRender(enabled)
             RunService:Set3dRenderingEnabled(false)
         end)
 
-        if BlackFrame then
-            BlackFrame.Visible = true
-        end
-
-        if ToggleButton then
-            ToggleButton.Text = "Render: OFF"
-            ToggleButton.BackgroundColor3 =
-                Color3.fromRGB(180, 40, 40)
-        end
+        BlackFrame.Visible = true
 
         if setFpsCap then
+
             pcall(function()
                 setFpsCap(30)
             end)
+
         end
 
     end
 
+
+    UpdateRenderButton()
+
 end
+
 
 local function ToggleRender()
 
@@ -282,23 +441,64 @@ local function ToggleRender()
 
 end
 
+
 --============================================================
--- 13. BUTTON CONNECTION
+-- AUTO EXECUTE CONTROL
+--============================================================
+
+local function SetAutoExecute(enabled)
+
+    State.AutoExecute = enabled
+
+    getgenv().autoexe = enabled
+
+    -- Chỉ ghi file khi người dùng thực sự thay đổi setting
+    SaveAutoExecute(enabled)
+
+    UpdateAutoButton()
+
+end
+
+
+local function ToggleAutoExecute()
+
+    SetAutoExecute(not State.AutoExecute)
+
+end
+
+
+--============================================================
+-- BUTTON EVENTS
 --============================================================
 
 AddConnection(
-    ToggleButton.MouseButton1Click:Connect(function()
+
+    RenderButton.MouseButton1Click:Connect(function()
 
         ToggleRender()
 
     end)
+
 )
 
+
+AddConnection(
+
+    AutoButton.MouseButton1Click:Connect(function()
+
+        ToggleAutoExecute()
+
+    end)
+
+)
+
+
 --============================================================
--- 14. F4 CONNECTION
+-- F4
 --============================================================
 
 AddConnection(
+
     UserInputService.InputBegan:Connect(
         function(input, gameProcessed)
 
@@ -311,47 +511,39 @@ AddConnection(
             end
 
             if input.KeyCode == Enum.KeyCode.F4 then
+
                 ToggleRender()
+
             end
 
         end
     )
+
 )
 
---============================================================
--- 15. OPTIONAL ANTI-AFK
---============================================================
-
--- Nếu muốn bật Anti-AFK, bỏ comment phần dưới.
-
---[[
-AddConnection(
-    LocalPlayer.Idled:Connect(function()
-
-        pcall(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
-        end)
-
-    end)
-)
-]]
 
 --============================================================
--- 16. AUTO RENDER OFF
+-- INITIAL STATE
 --============================================================
 
-if getgenv().autoexe == true then
+UpdateAutoButton()
+
+-- Render OFF mặc định khi AutoExecute đang ON
+if State.AutoExecute then
     SetRender(false)
+else
+    SetRender(true)
 end
 
+
 --============================================================
--- 17. TELEPORT AUTO EXECUTE
+-- QUEUE TELEPORT
 --============================================================
 
-if queueTeleport then
+if State.AutoExecute and queueTeleport then
 
-    local autoExeValue = tostring(getgenv().autoexe)
+    local autoExeValue =
+        tostring(State.AutoExecute)
 
     local teleportCode =
         'getgenv().autoexe = ' ..
@@ -367,8 +559,9 @@ if queueTeleport then
 
 end
 
+
 --============================================================
--- 18. CLEANUP FUNCTION
+-- CLEANUP
 --============================================================
 
 function State:Cleanup()
@@ -379,40 +572,61 @@ function State:Cleanup()
 
     self.Destroyed = true
 
-    -- Disconnect connections
+
     DisconnectAll()
 
-    -- Restore rendering
+
     pcall(function()
         RunService:Set3dRenderingEnabled(true)
     end)
 
-    -- Restore FPS
+
     if setFpsCap then
+
         pcall(function()
             setFpsCap(60)
         end)
+
     end
 
-    -- Destroy GUI
+
     if self.Gui then
+
         pcall(function()
             self.Gui:Destroy()
         end)
+
     end
 
-    -- Remove global state
+
     if getgenv()[STATE_KEY] == self then
         getgenv()[STATE_KEY] = nil
     end
 
 end
 
+
 --============================================================
--- 19. READY
+-- STATUS
 --============================================================
 
-print("[AntiBurnIn] Loaded successfully")
-print("[AntiBurnIn] F4 = Toggle Render")
-print("[AntiBurnIn] Render Off = 3D Rendering Disabled")
-print("[AntiBurnIn] Long-run state initialized")
+print("--------------------------------")
+print("[AntiBurnIn] Loaded")
+print("[AntiBurnIn] Render : F4")
+print(
+    "[AntiBurnIn] AutoExec : "
+    .. tostring(State.AutoExecute)
+)
+
+if fileSupported then
+    print(
+        "[AntiBurnIn] Config : "
+        .. CONFIG_FILE
+    )
+else
+    print(
+        "[AntiBurnIn] File API unavailable"
+    )
+end
+
+print("--------------------------------")
