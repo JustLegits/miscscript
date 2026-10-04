@@ -280,15 +280,52 @@ AddConnection(RunService.Heartbeat:Connect(function()
     end
 end))
 
--- Chống kick sau 20 phút không tương tác (Anti-AFK)
+-- Chống kick sau 20 phút không tương tác (Anti-AFK Chủ động)
+local VirtualInputManager = (function()
+    local success, vim = pcall(function() return game:GetService("VirtualInputManager") end)
+    return success and vim or nil
+end)()
+
+local function SendAntiAfkSignal()
+    -- 1. Giả lập bấm phím Space qua VirtualInputManager
+    if VirtualInputManager then
+        pcall(function()
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+            task.wait(0.05)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+        end)
+    end
+
+    -- 2. Fallback click chuột qua VirtualUser
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.zero)
+    end)
+
+    -- 3. Kích hoạt nhảy trên Humanoid để phá cơ chế kiểm tra tọa độ của game
+    pcall(function()
+        local character = LocalPlayer.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.Health > 0 then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+end
+
+-- Vẫn giữ Idled để hứng sự kiện từ Roblox
 if LocalPlayer then
     AddConnection(LocalPlayer.Idled:Connect(function()
-        pcall(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.zero)
-        end)
+        SendAntiAfkSignal()
     end))
 end
+
+-- Chủ động gửi tín hiệu mỗi 8 phút, tự ngắt khi Cleanup
+task.spawn(function()
+    while not State.Destroyed do
+        task.wait(480)
+        SendAntiAfkSignal()
+    end
+end)
 
 --============================================================
 -- CLEANUP
