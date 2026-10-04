@@ -1,5 +1,5 @@
 --// =========================================================
---// AntiBurnIn - Production / Long-Run Final (Patched)
+--// AntiBurnIn - Production / Long-Run Final (With Anti-AFK)
 --// =========================================================
 
 local CONFIG_FILE = "AntiBurnIn_autoexe.txt"
@@ -17,6 +17,10 @@ local UserInputService = game:GetService("UserInputService")
 local RunService       = game:GetService("RunService")
 local TweenService     = game:GetService("TweenService")
 local CoreGui          = game:GetService("CoreGui")
+local Players          = game:GetService("Players")
+local VirtualUser      = game:GetService("VirtualUser")
+
+local LocalPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() and Players.LocalPlayer
 
 local gethuiFunc     = type(gethui) == "function" and gethui or nil
 local setFpsCap      = type(setfpscap) == "function" and setfpscap or nil
@@ -184,7 +188,6 @@ local function ApplyTeleportQueue()
         'if run then loadstring(game:HttpGet("' .. SCRIPT_URL .. '"))() end'
     }, "; ")
 
-    -- Chỉ đánh dấu đã queue khi hàm thực thi không gặp lỗi
     local success = pcall(function()
         queueTeleport(bootstrapPayload)
     end)
@@ -270,12 +273,22 @@ end))
 
 AddConnection(ButtonContainer.MouseEnter:Connect(RegisterActivity))
 
--- Kiểm tra thời gian không hoạt động mỗi frame (chi phí so sánh gần như bằng 0)
+-- Tự động làm mờ UI sau FADE_TIME giây
 AddConnection(RunService.Heartbeat:Connect(function()
     if not State.IsFaded and (os.clock() - lastActive) > FADE_TIME then
         SetUIFade(true)
     end
 end))
+
+-- Chống kick sau 20 phút không tương tác (Anti-AFK)
+if LocalPlayer then
+    AddConnection(LocalPlayer.Idled:Connect(function()
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.zero)
+        end)
+    end))
+end
 
 --============================================================
 -- CLEANUP
