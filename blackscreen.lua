@@ -3,7 +3,7 @@
 --// =========================================================
 
 local CONFIG_FILE = "AntiBurnIn_autoexe.txt"
-local SCRIPT_URL  = "https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/3drender.lua"
+local SCRIPT_URL  = "https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/blackscreen.lua"
 local GUI_NAME    = "AntiBurnInGui"
 local STATE_KEY   = "AntiBurnInState_Secure"
 local FADE_TIME   = 3   -- Giây không tương tác trước khi làm mờ nút
