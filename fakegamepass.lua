@@ -12,7 +12,7 @@ local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
 local toggleKey = Enum.KeyCode.RightShift
-local supportedUrl = "https://raw.githubusercontent.com/JustLegits/miscscript/refs/heads/main/fakegamepass.lua"
+local supportedUrl = "https://loadstring.net/raw/TCiFuJc4kK"
 local title = "PRODUCT FAKER V2"
 
 local asciiCfg = {
