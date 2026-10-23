@@ -7,7 +7,7 @@ local SCRIPT_URL  = "https://raw.githubusercontent.com/JustLegits/miscscript/ref
 local GUI_NAME    = "AntiBurnInGui"
 local STATE_KEY   = "AntiBurnInState_Secure"
 local FADE_TIME   = 3   -- Giây không tương tác trước khi làm mờ nút
-local RESTORE_FPS = 45  -- FPS khi mở lại màn hình hoặc cleanup
+local RESTORE_FPS = 30  -- FPS khi mở lại màn hình hoặc cleanup
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -224,10 +224,10 @@ local function SetScreen(turnOffScreen)
     State.ScreenOff = turnOffScreen
     State.BlackFrame.Visible = turnOffScreen
 
-    -- Giảm FPS về 30 để máy mát khi che màn hình, khôi phục lại khi bật màn hình
+    -- Giảm FPS về 15 để máy mát khi che màn hình, khôi phục lại khi bật màn hình
     if setFpsCap then
         if turnOffScreen then
-            pcall(function() setFpsCap(30) end)
+            pcall(function() setFpsCap(15) end)
         else
             pcall(function() setFpsCap(RESTORE_FPS) end)
         end
