@@ -264,7 +264,7 @@ local function SendAntiAfkSignal()
     if VirtualInputManager then
         pcall(function()
             VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-            task.wait(0.05)
+            task.wait(0.1)
             VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
         end)
     end
@@ -272,6 +272,7 @@ local function SendAntiAfkSignal()
     -- 2. Fallback VirtualUser click
     pcall(function()
         VirtualUser:CaptureController()
+        task.wait(0.1)
         VirtualUser:ClickButton2(Vector2.zero)
     end)
 
@@ -291,10 +292,10 @@ if LocalPlayer then
     end))
 end
 
--- Chủ động gửi tín hiệu mỗi 8 phút
+-- Chủ động gửi tín hiệu mỗi 5 phút
 task.spawn(function()
     while not State.Destroyed do
-        task.wait(480)
+        task.wait(300)
         SendAntiAfkSignal()
     end
 end)
